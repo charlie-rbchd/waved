@@ -7,8 +7,10 @@ edition = "2018"
 
 [dependencies]
 glfw = "0.26.1"
-nfd = "0.0.4"
 cairo-rs = "0.5.0"
+nfd = "0.0.4"
+portaudio = "0.7.0"
+nom = "4.2.0"
 
 [package.metadata.bundle]
 # name = "Waved"
