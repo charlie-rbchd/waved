@@ -10,6 +10,17 @@ use std::thread;
 // TODO: Draw some text!
 
 fn main() {
+    // TODO: Use an alternative to clap? It adds 700kb to the exec size!!
+    // Parse the command line
+    let matches = clap::App::new("myprog")
+        .arg(clap::Arg::with_name("files").multiple(true))
+        .get_matches();
+    
+    if let Some(files) = matches.values_of("files").map(|vals| vals.collect::<Vec<_>>()) {
+        println!("Files {:?}", files);
+    }
+
+    // Create window and pump messages
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
     let (mut window, events) = glfw.create_window(960, 320, "waved", glfw::WindowMode::Windowed)
