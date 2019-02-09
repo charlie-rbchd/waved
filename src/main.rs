@@ -6,7 +6,8 @@ use portaudio as pa;
 use std::f64::consts::PI;
 use std::thread;
 
-// TODO: Display some kind of graphics through OpenGL and benchmark the perf
+// TODO: Draw some shapes!
+// TODO: Draw some text!
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -15,6 +16,7 @@ fn main() {
         .expect("Failed to create GLFW window.");
 
     window.set_key_polling(true);
+    window.set_drag_and_drop_polling(true);
     window.make_current();
 
     while !window.should_close() {
@@ -46,6 +48,9 @@ fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent) {
                 run_portaudio_test().expect("PortAudio Test: failed to run");
             });
         },
+        glfw::WindowEvent::FileDrop(files) => {
+            println!("Files {:?}", files);
+        }
         _ => {}
     }
 }

@@ -7,6 +7,7 @@ edition = "2018"
 
 [dependencies]
 glfw = "0.26.0"
+nanovg = { version = "1.0.2", features = ["gl3"] }
 nfd = "0.0.4"
 portaudio = "0.7.0"
 nom = "4.2.0"
