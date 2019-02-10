@@ -1,3 +1,6 @@
+// TODO: Implement wave file parser using nom (in a subproject)
+// TODO: Split this file.
+
 use glfw::{Action, Context, Key};
 
 use nfd::Response;
@@ -6,7 +9,10 @@ use portaudio as pa;
 use std::f64::consts::PI;
 use std::thread;
 
-// TODO: Implement wave file parser using nom (in a subproject)
+struct AppFonts<'a> {
+    regular: nanovg::Font<'a>,
+    _bold: nanovg::Font<'a>,
+}
 
 fn main() {
     // Parse the command line
@@ -41,8 +47,13 @@ fn main() {
         .build()
         .expect("Failed to create a drawing context.");
 
-    let font = nanovg::Font::from_file(&context, "Inconsolata-Regular", "resources/Inconsolata-Regular.ttf")
-        .expect("Failed to load font 'Inconsolata-Regular.ttf'");
+    let fonts = AppFonts {
+        regular: nanovg::Font::from_file(&context, "Inconsolata-Regular", "resources/Inconsolata-Regular.ttf")
+            .expect("Failed to load font 'Inconsolata-Regular.ttf'"),
+
+        _bold: nanovg::Font::from_file(&context, "Inconsolata-Bold", "resources/Inconsolata-Bold.ttf")
+            .expect("Failed to load font 'Inconsolata-Bold.ttf'"),
+    };
 
     // TODO: Less frequent redraws (dirty state tracking)
     // TODO: Partial redraws (invalidated region tracking)
@@ -59,7 +70,7 @@ fn main() {
         }
 
         context.frame((physical_width as f32, physical_height as f32), dpi_scale, |frame| {
-            nanovg_draw_test(&frame, font);
+            nanovg_draw_test(&frame, fonts.regular);
         });
 
         window.swap_buffers();
@@ -89,6 +100,8 @@ fn nanovg_draw_test(frame: &nanovg::Frame, font: nanovg::Font) {
 }
 
 fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent) {
+    // TODO: Investigate redraw issues when resizing on macOS.
+    // see https://github.com/glfw/glfw/issues/1
     match event {
         glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
             window.set_should_close(true)
@@ -111,7 +124,7 @@ fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent) {
         },
         glfw::WindowEvent::FileDrop(files) => {
             println!("Files {:?}", files);
-        }
+        },
         _ => {}
     }
 }
