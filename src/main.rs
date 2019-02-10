@@ -6,11 +6,9 @@ use portaudio as pa;
 use std::f64::consts::PI;
 use std::thread;
 
-// TODO: Draw some shapes!
 // TODO: Draw some text!
 
 fn main() {
-    // TODO: Use an alternative to clap? It adds 700kb to the exec size!!
     // Parse the command line
     let matches = clap::App::new("myprog")
         .arg(clap::Arg::with_name("files").multiple(true))
@@ -23,19 +21,60 @@ fn main() {
     // Create window and pump messages
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
+    glfw.window_hint(glfw::WindowHint::ContextVersion(3, 2));
+    glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
+    glfw.window_hint(glfw::WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
+
     let (mut window, events) = glfw.create_window(960, 320, "waved", glfw::WindowMode::Windowed)
-        .expect("Failed to create GLFW window.");
+        .expect("Failed to create a window.");
 
     window.set_key_polling(true);
     window.set_drag_and_drop_polling(true);
     window.make_current();
 
+    gl::load_with(|s| window.get_proc_address(s));
+
+    let context = nanovg::ContextBuilder::new()
+        .antialias()
+        .stencil_strokes()
+        .build()
+        .expect("Failed to create a drawing context.");
+
+    glfw.set_swap_interval(glfw::SwapInterval::Sync(1)); // vsync
+
+    // TODO: Only redraw if the state of the application has changed
     while !window.should_close() {
-        glfw.poll_events();
+        let (logical_width, logical_height) = window.get_framebuffer_size();
+        let (physical_width, physical_height) = window.get_size();
+
+        let dpi_scale = logical_width as f32 / physical_width as f32;
+
+        unsafe {
+            gl::Viewport(0, 0, logical_width, logical_height);
+            gl::ClearColor(0.2, 0.2, 0.2, 0.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
+        }
+
+        context.frame((physical_width as f32, physical_height as f32), dpi_scale, |frame| {
+            nanovg_draw_test(&frame);
+        });
+
+        window.swap_buffers();
+
+        glfw.wait_events();
         for (_, event) in glfw::flush_messages(&events) {
             handle_window_event(&mut window, event);
         }
     }
+}
+
+fn nanovg_draw_test(frame: &nanovg::Frame) {
+    frame.path(
+        |path| {
+            path.rect((0.0, 0.0), (100.0, 100.0));
+            path.fill(nanovg::Color::from_rgba(0, 0, 0, 128), Default::default());
+        },
+        Default::default());
 }
 
 fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent) {
@@ -68,7 +107,7 @@ fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent) {
 
 fn run_portaudio_test() -> Result<(), pa::Error> {
     const CHANNELS: i32 = 2;
-    const NUM_SECONDS: i32 = 5;
+    const NUM_SECONDS: i32 = 2;
     const SAMPLE_RATE: f64 = 44_100.0;
     const FRAMES_PER_BUFFER: u32 = 64;
     const TABLE_SIZE: usize = 200;
