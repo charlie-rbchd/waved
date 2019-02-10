@@ -6,7 +6,7 @@ use portaudio as pa;
 use std::f64::consts::PI;
 use std::thread;
 
-// TODO: Draw some text!
+// TODO: Implement wave file parser using nom (in a subproject)
 
 fn main() {
     // Parse the command line
@@ -31,8 +31,9 @@ fn main() {
     window.set_key_polling(true);
     window.set_drag_and_drop_polling(true);
     window.make_current();
+    gl::load_with(|symbol| window.get_proc_address(symbol));
 
-    gl::load_with(|s| window.get_proc_address(s));
+    glfw.set_swap_interval(glfw::SwapInterval::Sync(1)); // Enable vsync
 
     let context = nanovg::ContextBuilder::new()
         .antialias()
@@ -40,9 +41,11 @@ fn main() {
         .build()
         .expect("Failed to create a drawing context.");
 
-    glfw.set_swap_interval(glfw::SwapInterval::Sync(1)); // vsync
+    let font = nanovg::Font::from_file(&context, "Inconsolata-Regular", "resources/Inconsolata-Regular.ttf")
+        .expect("Failed to load font 'Inconsolata-Regular.ttf'");
 
-    // TODO: Only redraw if the state of the application has changed
+    // TODO: Less frequent redraws (dirty state tracking)
+    // TODO: Partial redraws (invalidated region tracking)
     while !window.should_close() {
         let (logical_width, logical_height) = window.get_framebuffer_size();
         let (physical_width, physical_height) = window.get_size();
@@ -51,12 +54,12 @@ fn main() {
 
         unsafe {
             gl::Viewport(0, 0, logical_width, logical_height);
-            gl::ClearColor(0.2, 0.2, 0.2, 0.0);
+            gl::ClearColor(0.2, 0.2, 0.2, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
         }
 
         context.frame((physical_width as f32, physical_height as f32), dpi_scale, |frame| {
-            nanovg_draw_test(&frame);
+            nanovg_draw_test(&frame, font);
         });
 
         window.swap_buffers();
@@ -68,13 +71,21 @@ fn main() {
     }
 }
 
-fn nanovg_draw_test(frame: &nanovg::Frame) {
+fn nanovg_draw_test(frame: &nanovg::Frame, font: nanovg::Font) {
     frame.path(
         |path| {
             path.rect((0.0, 0.0), (100.0, 100.0));
-            path.fill(nanovg::Color::from_rgba(0, 0, 0, 128), Default::default());
+            path.fill(nanovg::Color::from_rgb(255, 255, 0), Default::default());
         },
-        Default::default());
+        Default::default()
+    );
+
+    frame.text(font, (200.0, 100.0), "Hello, world! Hopefully the text rendering isn't too bad...", nanovg::TextOptions {
+        color: nanovg::Color::from_rgb(240, 240, 240),
+        align: nanovg::Alignment::new().left().top(),
+        size: 16.0,
+        ..Default::default()
+    });
 }
 
 fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent) {
