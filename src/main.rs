@@ -2,16 +2,38 @@
 // TODO: Split this file.
 
 use glfw::{Action, Context, Key};
-
 use nfd::Response;
-
 use portaudio as pa;
+
 use std::f64::consts::PI;
 use std::thread;
 
 struct AppFonts<'a> {
     regular: nanovg::Font<'a>,
     _bold: nanovg::Font<'a>,
+}
+
+#[cfg(target_os = "macos")]
+extern "C" fn refresh_callback(window: *mut glfw::ffi::GLFWwindow) {
+    // TODO: Make the draw context / fonts global so any render function
+    // can access them.
+    unsafe {
+        let mut logical_width: std::os::raw::c_int = 0;
+        let mut logical_height: std::os::raw::c_int = 0;
+        glfw::ffi::glfwGetFramebufferSize(window, &mut logical_width, &mut logical_height);
+
+    // let mut physical_width: std::os::raw::c_int = 0;
+    // let mut physical_height: std::os::raw::c_int = 0;
+    // glfw::ffi::glfwGetWindowSize(window, &mut physical_width, &mut physical_height);
+
+    // let dpi_scale = logical_width as f32 / physical_width as f32;
+
+        gl::Viewport(0, 0, logical_width, logical_height);
+        gl::ClearColor(0.2, 0.2, 0.2, 1.0);
+        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
+
+        glfw::ffi::glfwSwapBuffers(window);
+    }
 }
 
 fn main() {
@@ -24,7 +46,7 @@ fn main() {
         println!("Files {:?}", files);
     }
 
-    // Create window and pump messages
+    // Create window
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
     glfw.window_hint(glfw::WindowHint::ContextVersion(3, 2));
@@ -36,9 +58,16 @@ fn main() {
 
     window.set_key_polling(true);
     window.set_drag_and_drop_polling(true);
+    if cfg!(target_os = "macos") {
+        unsafe {
+            // Allow rendering while resizing due to wait_events / poll_events
+            // locking the main loop on macOS (see https://github.com/glfw/glfw/issues/1).
+            glfw::ffi::glfwSetWindowRefreshCallback(window.window_ptr(), Some(refresh_callback));
+        }
+    }
+
     window.make_current();
     gl::load_with(|symbol| window.get_proc_address(symbol));
-
     glfw.set_swap_interval(glfw::SwapInterval::Sync(1)); // Enable vsync
 
     let context = nanovg::ContextBuilder::new()
@@ -55,31 +84,35 @@ fn main() {
             .expect("Failed to load font 'Inconsolata-Bold.ttf'"),
     };
 
-    // TODO: Less frequent redraws (dirty state tracking)
-    // TODO: Partial redraws (invalidated region tracking)
+    // TODO: Implement a scene graph
+    // TODO: Less frequent redraws (dirty state checking)
     while !window.should_close() {
-        let (logical_width, logical_height) = window.get_framebuffer_size();
-        let (physical_width, physical_height) = window.get_size();
+        render(&mut window, &context, &fonts);
 
-        let dpi_scale = logical_width as f32 / physical_width as f32;
-
-        unsafe {
-            gl::Viewport(0, 0, logical_width, logical_height);
-            gl::ClearColor(0.2, 0.2, 0.2, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
-        }
-
-        context.frame((physical_width as f32, physical_height as f32), dpi_scale, |frame| {
-            nanovg_draw_test(&frame, fonts.regular);
-        });
-
-        window.swap_buffers();
-
-        glfw.wait_events();
+        glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
             handle_window_event(&mut window, event);
         }
     }
+}
+
+fn render(window: &mut glfw::Window, context: &nanovg::Context, fonts: &AppFonts) {
+    let (logical_width, logical_height) = window.get_framebuffer_size();
+    let (physical_width, physical_height) = window.get_size();
+
+    let dpi_scale = logical_width as f32 / physical_width as f32;
+
+    unsafe {
+        gl::Viewport(0, 0, logical_width, logical_height);
+        gl::ClearColor(0.2, 0.2, 0.2, 1.0);
+        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
+    }
+
+    context.frame((physical_width as f32, physical_height as f32), dpi_scale, |frame| {
+        nanovg_draw_test(&frame, fonts.regular);
+    });
+
+    window.swap_buffers();
 }
 
 fn nanovg_draw_test(frame: &nanovg::Frame, font: nanovg::Font) {
@@ -100,8 +133,6 @@ fn nanovg_draw_test(frame: &nanovg::Frame, font: nanovg::Font) {
 }
 
 fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent) {
-    // TODO: Investigate redraw issues when resizing on macOS.
-    // see https://github.com/glfw/glfw/issues/1
     match event {
         glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
             window.set_should_close(true)
@@ -124,7 +155,7 @@ fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent) {
         },
         glfw::WindowEvent::FileDrop(files) => {
             println!("Files {:?}", files);
-        },
+        }
         _ => {}
     }
 }
