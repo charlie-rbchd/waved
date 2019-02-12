@@ -9,32 +9,35 @@ use portaudio as pa;
 use std::f64::consts::PI;
 use std::thread;
 
-struct AppFonts<'a> {
+struct Fonts<'a> {
     regular: nanovg::Font<'a>,
-    _bold: nanovg::Font<'a>,
+    bold: nanovg::Font<'a>,
 }
 
 #[cfg(target_os = "macos")]
 extern "C" fn refresh_callback(window: *mut glfw::ffi::GLFWwindow) {
-    // TODO: Make the draw context / fonts global so any render function
-    // can access them.
     unsafe {
         let mut logical_width: std::os::raw::c_int = 0;
         let mut logical_height: std::os::raw::c_int = 0;
         glfw::ffi::glfwGetFramebufferSize(window, &mut logical_width, &mut logical_height);
 
-    // let mut physical_width: std::os::raw::c_int = 0;
-    // let mut physical_height: std::os::raw::c_int = 0;
-    // glfw::ffi::glfwGetWindowSize(window, &mut physical_width, &mut physical_height);
+        let mut physical_width: std::os::raw::c_int = 0;
+        let mut physical_height: std::os::raw::c_int = 0;
+        glfw::ffi::glfwGetWindowSize(window, &mut physical_width, &mut physical_height);
 
-    // let dpi_scale = logical_width as f32 / physical_width as f32;
+        let dpi_scale = logical_width as f32 / physical_width as f32;
 
-        gl::Viewport(0, 0, logical_width, logical_height);
-        gl::ClearColor(0.2, 0.2, 0.2, 1.0);
-        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
+        clear(logical_width, logical_height);
+        render(&context, &fonts, physical_width, physical_height, dpi_scale);
 
         glfw::ffi::glfwSwapBuffers(window);
     }
+}
+
+fn clear(viewport_width: i32, viewport_height: i32) {
+    gl::Viewport(0, 0, viewport_width, viewport_height);
+    gl::ClearColor(0.2, 0.2, 0.2, 1.0);
+    gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
 }
 
 fn main() {
@@ -77,18 +80,25 @@ fn main() {
         .build()
         .expect("Failed to create a drawing context.");
 
-    let fonts = AppFonts {
+    let fonts = Fonts {
         regular: nanovg::Font::from_file(&context, "Inconsolata-Regular", "resources/Inconsolata-Regular.ttf")
             .expect("Failed to load font 'Inconsolata-Regular.ttf'"),
 
-        _bold: nanovg::Font::from_file(&context, "Inconsolata-Bold", "resources/Inconsolata-Bold.ttf")
+        bold: nanovg::Font::from_file(&context, "Inconsolata-Bold", "resources/Inconsolata-Bold.ttf")
             .expect("Failed to load font 'Inconsolata-Bold.ttf'"),
     };
 
     // TODO: Implement a scene graph
     // TODO: Less frequent redraws (dirty state checking)
     while !window.should_close() {
-        render(&mut window, &context, &fonts);
+        let (logical_width, logical_height) = window.get_framebuffer_size();
+        let (physical_width, physical_height) = window.get_size();
+
+        let dpi_scale = logical_width as f32 / physical_width as f32;
+
+        clear(logical_width, logical_height);
+        render(&context, &fonts, physical_width, physical_height, dpi_scale);
+        window.swap_buffers();
 
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
@@ -97,23 +107,10 @@ fn main() {
     }
 }
 
-fn render(window: &mut glfw::Window, context: &nanovg::Context, fonts: &AppFonts) {
-    let (logical_width, logical_height) = window.get_framebuffer_size();
-    let (physical_width, physical_height) = window.get_size();
-
-    let dpi_scale = logical_width as f32 / physical_width as f32;
-
-    unsafe {
-        gl::Viewport(0, 0, logical_width, logical_height);
-        gl::ClearColor(0.2, 0.2, 0.2, 1.0);
-        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
-    }
-
-    context.frame((physical_width as f32, physical_height as f32), dpi_scale, |frame| {
+fn render(context: &nanovg::Context, fonts: &Fonts, frame_width: i32, frame_height: i32, dpi_scale: f32) {
+    context.frame((frame_width as f32, frame_height as f32), dpi_scale, |frame| {
         nanovg_draw_test(&frame, fonts.regular);
     });
-
-    window.swap_buffers();
 }
 
 fn nanovg_draw_test(frame: &nanovg::Frame, font: nanovg::Font) {
