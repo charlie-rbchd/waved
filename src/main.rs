@@ -1,5 +1,6 @@
+// TODO: Split this file
 // TODO: Implement wave file parser using nom (in a subproject)
-// TODO: Split this file.
+// TODO: Implement hot reloading
 
 use glfw::{Action, Context, Key};
 use nfd::Response;
