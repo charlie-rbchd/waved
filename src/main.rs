@@ -5,14 +5,28 @@
 use glfw::{Action, Context, Key};
 use nfd::Response;
 use portaudio as pa;
+use lazy_static::lazy_static;
 
 use std::f64::consts::PI;
 use std::thread;
+use std::cell::RefCell;
 
 struct Fonts<'a> {
     regular: nanovg::Font<'a>,
     bold: nanovg::Font<'a>,
 }
+
+// struct UIContext {
+//     context: &nanovg::Context,
+//     fonts: &Fonts
+// }
+
+// #[derive(Default)]
+// struct App<'a> {
+//     ui: RefCell<Option<UIContext>>
+// }
+
+// static app: App<'static> = App::default();
 
 #[cfg(target_os = "macos")]
 extern "C" fn refresh_callback(window: *mut glfw::ffi::GLFWwindow) {
@@ -28,16 +42,19 @@ extern "C" fn refresh_callback(window: *mut glfw::ffi::GLFWwindow) {
         let dpi_scale = logical_width as f32 / physical_width as f32;
 
         clear(logical_width, logical_height);
-        render(&context, &fonts, physical_width, physical_height, dpi_scale);
+        // TODO: Find a way to expose context / font globally so they can be accessed here
+        // render(&context, &fonts, physical_width, physical_height, dpi_scale);
 
         glfw::ffi::glfwSwapBuffers(window);
     }
 }
 
 fn clear(viewport_width: i32, viewport_height: i32) {
-    gl::Viewport(0, 0, viewport_width, viewport_height);
-    gl::ClearColor(0.2, 0.2, 0.2, 1.0);
-    gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
+    unsafe {
+        gl::Viewport(0, 0, viewport_width, viewport_height);
+        gl::ClearColor(0.2, 0.2, 0.2, 1.0);
+        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
+    }
 }
 
 fn main() {

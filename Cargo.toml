@@ -13,6 +13,7 @@ nfd = "0.0.4"
 portaudio = "0.7.0"
 # nom = "4.2.0"
 clap = "2.32.0"
+lazy_static = "1.2.0"
 
 [package.metadata.bundle]
 # name = "Waved"
