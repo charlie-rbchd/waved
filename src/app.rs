@@ -87,20 +87,13 @@ impl App {
         }
     }
 
-    fn clear(&self) {
-        let (logical_width, logical_height) = self.window.borrow().get_framebuffer_size();
-        unsafe {
-            gl::Viewport(0, 0, logical_width, logical_height);
-            gl::ClearColor(0.2, 0.2, 0.2, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
-        }
-    }
-
     pub fn render_ui(&self) {
         self.clear();
 
+        // TODO: Implement a scene graph
+        // TODO: Less frequent redraws (dirty state checking)
         let (physical_width, physical_height) = self.window.borrow().get_size();
-        self.context.frame((physical_width as f32, physical_height as f32), self.get_dpi_scale(), |frame| {
+        self.context.frame((physical_width as f32, physical_height as f32), self.dpi_scale(), |frame| {
             frame.path(
                 |path| {
                     path.rect((0.0, 0.0), (100.0, 100.0));
@@ -120,27 +113,34 @@ impl App {
         self.window.borrow_mut().swap_buffers();
     }
 
-    fn get_dpi_scale(&self) -> f32 {
+    pub fn run(&self) {
+        while !self.window.borrow().should_close() {
+            self.render_ui();
+
+            self.glfw.borrow_mut().poll_events();
+            for (_, event) in glfw::flush_messages(&self.events) {
+                self.process_event(event);
+            }
+        }
+    }
+
+    fn dpi_scale(&self) -> f32 {
         let (logical_width, _) = self.window.borrow().get_framebuffer_size();
         let (physical_width, _) = self.window.borrow().get_size();
 
         logical_width as f32 / physical_width as f32
     }
 
-    pub fn run(&self) {
-        // TODO: Implement a scene graph
-        // TODO: Less frequent redraws (dirty state checking)
-        while !self.window.borrow().should_close() {
-            self.render_ui();
-
-            self.glfw.borrow_mut().poll_events();
-            for (_, event) in glfw::flush_messages(&self.events) {
-                self.handle_window_event(event);
-            }
+    fn clear(&self) {
+        let (logical_width, logical_height) = self.window.borrow().get_framebuffer_size();
+        unsafe {
+            gl::Viewport(0, 0, logical_width, logical_height);
+            gl::ClearColor(0.2, 0.2, 0.2, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
         }
     }
 
-    fn handle_window_event(&self, event: glfw::WindowEvent) {
+    fn process_event(&self, event: glfw::WindowEvent) {
         match event {
             glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
                 self.window.borrow_mut().set_should_close(true)
