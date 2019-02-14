@@ -16,7 +16,7 @@ pub struct App<'a> {
     glfw: RefCell<glfw::Glfw>,
     window: RefCell<glfw::Window>,
     events: Receiver<(f64, glfw::WindowEvent)>,
-    fonts: OwningHandle<Box<nanovg::Context>, Box<Fonts<'a>>>,
+    ctx_owning_fonts: OwningHandle<Box<nanovg::Context>, Box<Fonts<'a>>>,
 }
 
 thread_local! {
@@ -57,7 +57,7 @@ impl<'a> App<'a> {
             .build()
             .expect("Failed to create a drawing context."));
 
-        let fonts = OwningHandle::new_with_fn(context, unsafe { |ctx| {
+        let ctx_owning_fonts = OwningHandle::new_with_fn(context, unsafe { |ctx| {
             Box::new(Fonts {
                 regular: nanovg::Font::from_file(&*ctx, "Inconsolata-Regular", "resources/Inconsolata-Regular.ttf")
                     .expect("Failed to load font 'Inconsolata-Regular.ttf'"),
@@ -71,7 +71,7 @@ impl<'a> App<'a> {
             glfw: RefCell::new(glfw),
             window: RefCell::new(window),
             events,
-            fonts,
+            ctx_owning_fonts,
         }
     }
 
@@ -91,7 +91,7 @@ impl<'a> App<'a> {
         // TODO: Implement a scene graph
         // TODO: Less frequent redraws (dirty state checking)
         let (physical_width, physical_height) = self.window.borrow().get_size();
-        self.fonts.as_owner().frame((physical_width as f32, physical_height as f32), self.dpi_scale(), |frame| {
+        self.ctx_owning_fonts.as_owner().frame((physical_width as f32, physical_height as f32), self.dpi_scale(), |frame| {
             frame.path(
                 |path| {
                     path.rect((0.0, 0.0), (100.0, 100.0));
@@ -100,7 +100,7 @@ impl<'a> App<'a> {
                 Default::default()
             );
 
-            frame.text((*self.fonts).regular, (200.0, 100.0), "Hello, world! Hopefully the text rendering isn't too bad...", nanovg::TextOptions {
+            frame.text((*self.ctx_owning_fonts).regular, (200.0, 100.0), "Hello, world! Hopefully the text rendering isn't too bad...", nanovg::TextOptions {
                 color: nanovg::Color::from_rgb(240, 240, 240),
                 align: nanovg::Alignment::new().left().top(),
                 size: 16.0,
