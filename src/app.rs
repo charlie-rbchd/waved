@@ -1,5 +1,4 @@
-use glfw::{Action, Context, Key};
-use nfd::Response;
+use glfw::{ Action, Context, Glfw, Key, OpenGlProfileHint, SwapInterval, Window, WindowEvent, WindowHint, WindowMode, FAIL_ON_ERRORS };
 
 use std::thread_local;
 use std::cell::RefCell;
@@ -13,9 +12,9 @@ pub struct Fonts<'a> {
 }
 
 pub struct App<'a> {
-    glfw: RefCell<glfw::Glfw>,
-    window: RefCell<glfw::Window>,
-    events: Receiver<(f64, glfw::WindowEvent)>,
+    glfw: RefCell<Glfw>,
+    window: RefCell<Window>,
+    events: Receiver<(f64, WindowEvent)>,
     context: Box<nanovg::Context>,
     fonts: Fonts<'a>,
 }
@@ -31,13 +30,13 @@ extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
 
 impl<'a> App<'a> {
     pub fn new() -> Self {
-        let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
+        let mut glfw = glfw::init(FAIL_ON_ERRORS).unwrap();
 
-        glfw.window_hint(glfw::WindowHint::ContextVersion(3, 2));
-        glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
-        glfw.window_hint(glfw::WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
+        glfw.window_hint(WindowHint::ContextVersion(3, 2));
+        glfw.window_hint(WindowHint::OpenGlForwardCompat(true));
+        glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Core));
 
-        let (mut window, events) = glfw.create_window(960, 320, "waved", glfw::WindowMode::Windowed)
+        let (mut window, events) = glfw.create_window(960, 320, "waved", WindowMode::Windowed)
             .expect("Failed to create a window.");
 
         window.set_key_polling(true);
@@ -51,7 +50,7 @@ impl<'a> App<'a> {
 
         window.make_current();
         gl::load_with(|symbol| window.get_proc_address(symbol));
-        glfw.set_swap_interval(glfw::SwapInterval::Sync(1)); // Enable vsync
+        glfw.set_swap_interval(SwapInterval::Sync(1)); // Enable vsync
 
         // Has to be heap-allocated since we take it's address when creating fonts.
         let context = Box::new(nanovg::ContextBuilder::new()
@@ -147,29 +146,29 @@ impl<'a> App<'a> {
         }
     }
 
-    fn process_event(&self, event: glfw::WindowEvent) {
+    fn process_event(&self, event: WindowEvent) {
         match event {
-            glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
+            WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
                 self.window.borrow_mut().set_should_close(true)
             },
-            glfw::WindowEvent::Key(Key::O, _, Action::Press, _) => {
+            WindowEvent::Key(Key::O, _, Action::Press, _) => {
                 let result = nfd::dialog()
                     .filter("wav").open()
                     .expect("Failed to open file dialog.");
 
                 match result {
-                    Response::Okay(file_path) => println!("File path = {:?}", file_path),
-                    Response::OkayMultiple(_) => panic!("User should only be able to select a single file."),
-                    Response::Cancel => println!("User canceled"),
+                    nfd::Response::Okay(file_path) => println!("File path = {:?}", file_path),
+                    nfd::Response::OkayMultiple(_) => panic!("User should only be able to select a single file."),
+                    nfd::Response::Cancel => println!("User canceled"),
                 }
             },
-            glfw::WindowEvent::Key(Key::S, _, Action::Press, _) => {
+            WindowEvent::Key(Key::S, _, Action::Press, _) => {
                 // TODO: Create a single audio thread and move the playback code to another file.
                 // thread::spawn(move || {
                 //     run_portaudio_test().expect("PortAudio Test: failed to run");
                 // });
             },
-            glfw::WindowEvent::FileDrop(files) => {
+            WindowEvent::FileDrop(files) => {
                 println!("Files {:?}", files);
             }
             _ => {}
