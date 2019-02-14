@@ -1,9 +1,9 @@
 use glfw::{Action, Context, Key};
 use nfd::Response;
 
-use owning_ref::OwningHandle;
 use std::thread_local;
 use std::cell::RefCell;
+use std::ops::Deref;
 use std::sync::mpsc::Receiver;
 
 #[allow(dead_code)]
@@ -16,7 +16,8 @@ pub struct App<'a> {
     glfw: RefCell<glfw::Glfw>,
     window: RefCell<glfw::Window>,
     events: Receiver<(f64, glfw::WindowEvent)>,
-    ctx_owning_fonts: OwningHandle<Box<nanovg::Context>, Box<Fonts<'a>>>,
+    context: Box<nanovg::Context>,
+    fonts: Fonts<'a>,
 }
 
 thread_local! {
@@ -41,37 +42,45 @@ impl<'a> App<'a> {
 
         window.set_key_polling(true);
         window.set_drag_and_drop_polling(true);
-        if cfg!(target_os = "macos") {
-            // Allow rendering while resizing due to wait_events / poll_events
-            // locking the main loop on macOS (see https://github.com/glfw/glfw/issues/1).
-            unsafe { glfw::ffi::glfwSetWindowRefreshCallback(window.window_ptr(), Some(refresh_callback)); }
-        }
+
+        // Allow rendering while resizing due to wait_events / poll_events
+        // locking the main loop on macOS (see https://github.com/glfw/glfw/issues/1).
+        if cfg!(target_os = "macos") { unsafe {
+            glfw::ffi::glfwSetWindowRefreshCallback(window.window_ptr(), Some(refresh_callback));
+        } }
 
         window.make_current();
         gl::load_with(|symbol| window.get_proc_address(symbol));
         glfw.set_swap_interval(glfw::SwapInterval::Sync(1)); // Enable vsync
 
+        // Has to be heap-allocated since we take it's address when creating fonts.
         let context = Box::new(nanovg::ContextBuilder::new()
             .antialias()
             .stencil_strokes()
             .build()
             .expect("Failed to create a drawing context."));
 
-        let ctx_owning_fonts = OwningHandle::new_with_fn(context, unsafe { |ctx| {
-            Box::new(Fonts {
-                regular: nanovg::Font::from_file(&*ctx, "Inconsolata-Regular", "resources/Inconsolata-Regular.ttf")
+        // Perform some unsafe pointer gymnastics to ignore lifetime constraints,
+        // making it possible to store context and fonts in the same struct even though
+        // context would normally have to outlive fonts since it is borrowed in
+        // the call to nanovg::Font::from_file.
+        let fonts = {
+            let context_ptr = context.deref() as *const _;
+            Fonts {
+                regular: nanovg::Font::from_file(unsafe { &*context_ptr }, "Inconsolata-Regular", "resources/Inconsolata-Regular.ttf")
                     .expect("Failed to load font 'Inconsolata-Regular.ttf'"),
 
-                bold: nanovg::Font::from_file(&*ctx, "Inconsolata-Bold", "resources/Inconsolata-Bold.ttf")
+                bold: nanovg::Font::from_file(unsafe { &*context_ptr }, "Inconsolata-Bold", "resources/Inconsolata-Bold.ttf")
                     .expect("Failed to load font 'Inconsolata-Bold.ttf'"),
-            })
-        } });
+            }
+        };
         
         Self {
             glfw: RefCell::new(glfw),
             window: RefCell::new(window),
             events,
-            ctx_owning_fonts,
+            context,
+            fonts,
         }
     }
 
@@ -91,7 +100,7 @@ impl<'a> App<'a> {
         // TODO: Implement a scene graph
         // TODO: Less frequent redraws (dirty state checking)
         let (physical_width, physical_height) = self.window.borrow().get_size();
-        self.ctx_owning_fonts.as_owner().frame((physical_width as f32, physical_height as f32), self.dpi_scale(), |frame| {
+        self.context.frame((physical_width as f32, physical_height as f32), self.dpi_scale(), |frame| {
             frame.path(
                 |path| {
                     path.rect((0.0, 0.0), (100.0, 100.0));
@@ -100,7 +109,7 @@ impl<'a> App<'a> {
                 Default::default()
             );
 
-            frame.text((*self.ctx_owning_fonts).regular, (200.0, 100.0), "Hello, world! Hopefully the text rendering isn't too bad...", nanovg::TextOptions {
+            frame.text(self.fonts.regular, (200.0, 100.0), "Hello, world! Hopefully the text rendering isn't too bad...", nanovg::TextOptions {
                 color: nanovg::Color::from_rgb(240, 240, 240),
                 align: nanovg::Alignment::new().left().top(),
                 size: 16.0,
