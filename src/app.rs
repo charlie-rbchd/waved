@@ -9,18 +9,25 @@ use std::sync::mpsc::Receiver;
 
 use crate::cli::CommandLineArgs;
 
+// FIXME: Live reload currently doesn't work because of system caching
+// (asking the os to unload a dylib doesn't mean it has to clear its cache).
+//
+// To circumvent this, we'll need to output dylibs with unique names
+// for each version that has to be reloaded using a build.rs script.
+// Then, the loading code can grab de most recent file.
+
 #[cfg(all(target_os = "macos", debug_assertions))]
-const CORELIB_PATH: &str = "waved-core/target/debug/libwaved_core.dylib";
+const CORELIB_PATH: &'static str = "waved-core/target/debug/libwaved_core.dylib";
 #[cfg(all(target_os = "macos", not(debug_assertions)))]
-const CORELIB_PATH: &str = "waved-core/target/release/libwaved_core.dylib";
+const CORELIB_PATH: &'static str = "waved-core/target/release/libwaved_core.dylib";
 #[cfg(all(target_os = "windows", debug_assertions))]
-const CORELIB_PATH: &str = "waved-core/target/debug/libwaved_core.dll";
+const CORELIB_PATH: &'static str = "waved-core/target/debug/libwaved_core.dll";
 #[cfg(all(target_os = "windows", not(debug_assertions)))]
-const CORELIB_PATH: &str = "waved-core/target/release/libwaved_core.dll";
+const CORELIB_PATH: &'static str = "waved-core/target/release/libwaved_core.dll";
 #[cfg(all(target_os = "linux", debug_assertions))]
-const CORELIB_PATH: &str = "waved-core/target/debug/libwaved_core.so";
+const CORELIB_PATH: &'static str = "waved-core/target/debug/libwaved_core.so";
 #[cfg(all(target_os = "linux", not(debug_assertions)))]
-const CORELIB_PATH: &str = "waved-core/target/release/libwaved_core.so";
+const CORELIB_PATH: &'static str = "waved-core/target/release/libwaved_core.so";
 
 #[cfg(target_os = "macos")]
 extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
@@ -146,11 +153,11 @@ impl<'a> App<'a> {
                 if let Ok(Ok(modified)) = std::fs::metadata(CORELIB_PATH).map(|m| m.modified()) {
                     if modified > last_modified {
                         drop(self.corelib.borrow_mut());
-                        self.corelib.replace(Library::new(CORELIB_PATH)
-                            .expect("Failed to load core library."));
+                        *self.corelib.borrow_mut() = Library::new(CORELIB_PATH)
+                            .expect("Failed to load core library.");
 
                         last_modified = modified;
-                        println!("Reloaded core library!")
+                        println!("Reloaded core library!");
                     }
                 }
             }
