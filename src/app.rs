@@ -9,19 +9,18 @@ use std::sync::mpsc::Receiver;
 
 use crate::cli::CommandLineArgs;
 
-// TODO: Test these on other platforms / configs
 #[cfg(all(target_os = "macos", debug_assertions))]
-const CORELIB_PATH: &str = "target/debug/deps/libwaved_core.dylib.dSYM/Contents/Resources/DWARF/libwaved_core.dylib";
+const CORELIB_PATH: &str = "waved-core/target/debug/libwaved_core.dylib";
 #[cfg(all(target_os = "macos", not(debug_assertions)))]
-const CORELIB_PATH: &str = "libwaved_core.dylib";
+const CORELIB_PATH: &str = "waved-core/target/release/libwaved_core.dylib";
 #[cfg(all(target_os = "windows", debug_assertions))]
-const CORELIB_PATH: &str = "libwaved_core.dll";
+const CORELIB_PATH: &str = "waved-core/target/debug/libwaved_core.dll";
 #[cfg(all(target_os = "windows", not(debug_assertions)))]
-const CORELIB_PATH: &str = "libwaved_core.dll";
+const CORELIB_PATH: &str = "waved-core/target/release/libwaved_core.dll";
 #[cfg(all(target_os = "linux", debug_assertions))]
-const CORELIB_PATH: &str = "libwaved_core.so";
+const CORELIB_PATH: &str = "waved-core/target/debug/libwaved_core.so";
 #[cfg(all(target_os = "linux", not(debug_assertions)))]
-const CORELIB_PATH: &str = "libwaved_core.so";
+const CORELIB_PATH: &str = "waved-core/target/release/libwaved_core.so";
 
 #[cfg(target_os = "macos")]
 extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
@@ -121,7 +120,7 @@ impl<'a> App<'a> {
                 Default::default()
             );
 
-            frame.text(self.fonts.regular, (200.0, 100.0), "Hello, world! Hopefully the text rendering isn't too bad...", nanovg::TextOptions {
+            frame.text(self.fonts.regular, (200.0, 100.0), self.get_message(), nanovg::TextOptions {
                 color: nanovg::Color::from_rgb(240, 240, 240),
                 align: nanovg::Alignment::new().left().top(),
                 size: 16.0,
@@ -137,22 +136,24 @@ impl<'a> App<'a> {
             println!("Files {:?}", args.files);
         }
 
-        // #[cfg(debug_assertions)]
-        // let mut last_modified = std::fs::metadata(CORELIB_PATH).unwrap()
-        //     .modified().unwrap();
+        #[cfg(debug_assertions)]
+        let mut last_modified = std::fs::metadata(CORELIB_PATH).unwrap()
+            .modified().unwrap();
 
         while !self.window.borrow().should_close() {
             // Enable live reloading of core lib in debug
-            // if cfg!(debug_assertions) {
-            //     if let Ok(Ok(modified)) = std::fs::metadata(CORELIB_PATH).map(|m| m.modified()) {
-            //         if modified > last_modified {
-            //             self.corelib.replace(Library::new(CORELIB_PATH)
-            //                 .expect("Failed to load core library."));
+            if cfg!(debug_assertions) {
+                if let Ok(Ok(modified)) = std::fs::metadata(CORELIB_PATH).map(|m| m.modified()) {
+                    if modified > last_modified {
+                        drop(self.corelib.borrow_mut());
+                        self.corelib.replace(Library::new(CORELIB_PATH)
+                            .expect("Failed to load core library."));
 
-            //             last_modified = modified;
-            //         }
-            //     }
-            // }
+                        last_modified = modified;
+                        println!("Reloaded core library!")
+                    }
+                }
+            }
 
             self.render_ui();
 
@@ -162,6 +163,12 @@ impl<'a> App<'a> {
             }
         }
     }
+
+    fn get_message(&self) -> &'static str { unsafe {
+        let l = self.corelib.borrow();
+        let f = l.get::<fn() -> &'static str>(b"get_message\0").unwrap();
+        f()
+    } }
 
     fn dpi_scale(&self) -> f32 {
         let (logical_width, _) = self.window.borrow().get_framebuffer_size();

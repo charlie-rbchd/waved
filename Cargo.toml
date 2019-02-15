@@ -5,6 +5,11 @@ description = "Fast, modal wave editor"
 authors = ["Joel Robichaud <robichaud.jo@gmail.com>"]
 edition = "2018"
 
+[package.metadata.bundle]
+identifier = "com.joelrobichaud.waved"
+copyright = "Copyright (c) Joel Robichaud 2019. All rights reserved."
+resources = ["resources"]
+
 [dependencies]
 libloading = "0.5.0"
 gl = "0.10.0"
@@ -19,18 +24,3 @@ clap = "2.32.0"
 
 [dependencies.waved-core]
 path = "waved-core"
-version = "*"
-
-[package.metadata.bundle]
-# name = "Waved"
-identifier = "com.joelrobichaud.waved"
-# icon = []
-# version = "0.1.0"
-# resources = []
-copyright = "Copyright (c) Joel Robichaud 2019. All rights reserved."
-# category = ""
-# short_description = ""
-# long_description = """
-# """
-# deb_depends = []
-# osx_frameworks = []
