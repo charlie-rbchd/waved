@@ -1,5 +1,5 @@
 pub struct CommandLineArgs {
-    pub files: Vec<String>
+    pub files: Vec<String>,
 }
 
 pub fn parse_commandline() -> CommandLineArgs {

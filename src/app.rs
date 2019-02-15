@@ -1,11 +1,32 @@
 use glfw::{ Action, Context, Glfw, Key, OpenGlProfileHint, SwapInterval, Window, WindowEvent, WindowHint, WindowMode, FAIL_ON_ERRORS };
 
+use libloading::Library;
+
 use std::thread_local;
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::sync::mpsc::Receiver;
 
 use crate::cli::CommandLineArgs;
+
+// TODO: Test these on other platforms / configs
+#[cfg(all(target_os = "macos", debug_assertions))]
+const CORELIB_PATH: &str = "target/debug/deps/libwaved_core.dylib.dSYM/Contents/Resources/DWARF/libwaved_core.dylib";
+#[cfg(all(target_os = "macos", not(debug_assertions)))]
+const CORELIB_PATH: &str = "libwaved_core.dylib";
+#[cfg(all(target_os = "windows", debug_assertions))]
+const CORELIB_PATH: &str = "libwaved_core.dll";
+#[cfg(all(target_os = "windows", not(debug_assertions)))]
+const CORELIB_PATH: &str = "libwaved_core.dll";
+#[cfg(all(target_os = "linux", debug_assertions))]
+const CORELIB_PATH: &str = "libwaved_core.so";
+#[cfg(all(target_os = "linux", not(debug_assertions)))]
+const CORELIB_PATH: &str = "libwaved_core.so";
+
+#[cfg(target_os = "macos")]
+extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
+    app.with(|a| a.render_ui());
+}
 
 #[allow(dead_code)]
 struct Fonts<'a> {
@@ -14,6 +35,7 @@ struct Fonts<'a> {
 }
 
 pub struct App<'a> {
+    corelib: RefCell<Library>,
     glfw: RefCell<Glfw>,
     window: RefCell<Window>,
     events: Receiver<(f64, WindowEvent)>,
@@ -25,13 +47,11 @@ thread_local! {
     pub static app: App<'static> = App::new();
 }
 
-#[cfg(target_os = "macos")]
-extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
-    app.with(|a| a.render_ui());
-}
-
 impl<'a> App<'a> {
     pub fn new() -> Self {
+        let corelib = Library::new(CORELIB_PATH)
+            .expect("Failed to load core library.");
+
         let mut glfw = glfw::init(FAIL_ON_ERRORS).unwrap();
 
         glfw.window_hint(WindowHint::ContextVersion(3, 2));
@@ -77,6 +97,7 @@ impl<'a> App<'a> {
         };
         
         Self {
+            corelib: RefCell::new(corelib),
             glfw: RefCell::new(glfw),
             window: RefCell::new(window),
             events,
@@ -116,7 +137,23 @@ impl<'a> App<'a> {
             println!("Files {:?}", args.files);
         }
 
+        // #[cfg(debug_assertions)]
+        // let mut last_modified = std::fs::metadata(CORELIB_PATH).unwrap()
+        //     .modified().unwrap();
+
         while !self.window.borrow().should_close() {
+            // Enable live reloading of core lib in debug
+            // if cfg!(debug_assertions) {
+            //     if let Ok(Ok(modified)) = std::fs::metadata(CORELIB_PATH).map(|m| m.modified()) {
+            //         if modified > last_modified {
+            //             self.corelib.replace(Library::new(CORELIB_PATH)
+            //                 .expect("Failed to load core library."));
+
+            //             last_modified = modified;
+            //         }
+            //     }
+            // }
+
             self.render_ui();
 
             self.glfw.borrow_mut().poll_events();

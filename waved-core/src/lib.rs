@@ -1,3 +1,8 @@
+#[no_mangle]
+pub fn get_message() -> &'static str {
+    "Hello, Dylib!"
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
