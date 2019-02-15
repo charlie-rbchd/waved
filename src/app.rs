@@ -5,8 +5,10 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::sync::mpsc::Receiver;
 
+use crate::cli::CommandLineArgs;
+
 #[allow(dead_code)]
-pub struct Fonts<'a> {
+struct Fonts<'a> {
     regular: nanovg::Font<'a>,
     bold: nanovg::Font<'a>,
 }
@@ -83,16 +85,6 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn parse_commandline(&self) {
-        let matches = clap::App::new("myprog")
-            .arg(clap::Arg::with_name("files").multiple(true))
-            .get_matches();
-        
-        if let Some(files) = matches.values_of("files").map(|vals| vals.collect::<Vec<_>>()) {
-            println!("Files {:?}", files);
-        }
-    }
-
     pub fn render_ui(&self) {
         self.clear();
 
@@ -119,7 +111,11 @@ impl<'a> App<'a> {
         self.window.borrow_mut().swap_buffers();
     }
 
-    pub fn run(&self) {
+    pub fn run(&self, args: CommandLineArgs) {
+        if !args.files.is_empty() {
+            println!("Files {:?}", args.files);
+        }
+
         while !self.window.borrow().should_close() {
             self.render_ui();
 
