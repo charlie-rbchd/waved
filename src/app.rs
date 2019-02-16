@@ -12,6 +12,8 @@ use std::fs;
 
 use crate::cli::CommandLineArgs;
 
+// TODO: Need a script that builds and copies the corelib *only*
+// TODO: pdbs (and others) probably need to be copied to for debugging purposes?
 #[cfg(all(target_os = "macos", debug_assertions))]
 const CORELIB_PATH: &'static str = "target/debug/libwaved_core.dylib";
 #[cfg(all(target_os = "linux", debug_assertions))]
@@ -39,7 +41,6 @@ fn load_path(lib_path: &str) -> PathBuf {
         src_path
     }
 }
-
 
 extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
     app.with(|a| a.render_ui());
