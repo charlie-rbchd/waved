@@ -13,11 +13,11 @@ use std::fs;
 use crate::cli::CommandLineArgs;
 
 #[cfg(all(target_os = "macos", debug_assertions))]
-const CORELIB_PATH: &'static str = "waved-core/target/debug/libwaved_core.dylib";
+const CORELIB_PATH: &'static str = "target/debug/libwaved_core.dylib";
 #[cfg(all(target_os = "linux", debug_assertions))]
-const CORELIB_PATH: &'static str = "waved-core/target/debug/libwaved_core.so";
+const CORELIB_PATH: &'static str = "target/debug/libwaved_core.so";
 #[cfg(all(target_os = "windows", debug_assertions))]
-const CORELIB_PATH: &'static str = "waved-core/target/debug/waved_core.dll";
+const CORELIB_PATH: &'static str = "target/debug/waved_core.dll";
 
 fn load_path(lib_path: &str) -> PathBuf {
     let src_path = PathBuf::from(lib_path);
@@ -183,8 +183,11 @@ impl<'a> App<'a> {
 
     fn get_message(&self) -> &'static str { unsafe {
         let l = self.corelib.borrow();
-        let f = l.get::<fn() -> &'static str>(b"get_message\0").unwrap();
-        f()
+        if let Ok(f) = l.get::<fn() -> &'static str>(b"get_message\0") {
+            f()
+        } else {
+            ""
+        }
     } }
 
     fn dpi_scale(&self) -> f32 {

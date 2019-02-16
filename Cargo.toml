@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Fast, modal wave editor"
 authors = ["Joel Robichaud <robichaud.jo@gmail.com>"]
 edition = "2018"
+build = "build.rs"
 
 [package.metadata.bundle]
 identifier = "com.joelrobichaud.waved"
