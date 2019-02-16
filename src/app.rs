@@ -6,17 +6,41 @@ use std::thread_local;
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::sync::mpsc::Receiver;
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::path::PathBuf;
+use std::fs;
 
 use crate::cli::CommandLineArgs;
 
 #[cfg(all(target_os = "macos", debug_assertions))]
 const CORELIB_PATH: &'static str = "waved-core/target/debug/libwaved_core.dylib";
-#[cfg(all(target_os = "windows", debug_assertions))]
-const CORELIB_PATH: &'static str = "waved-core/target/debug/libwaved_core.dll";
 #[cfg(all(target_os = "linux", debug_assertions))]
 const CORELIB_PATH: &'static str = "waved-core/target/debug/libwaved_core.so";
+#[cfg(all(target_os = "windows", debug_assertions))]
+const CORELIB_PATH: &'static str = "waved-core/target/debug/waved_core.dll";
 
-#[cfg(target_os = "macos")]
+fn load_path(lib_path: &str) -> PathBuf {
+    let src_path = PathBuf::from(lib_path);
+    if cfg!(debug_assertions) {
+        // Most systems either lock or cache dynamic libraries once they are loaded by an application,
+        // make a unique copy of it to allow hot reloading (debug only)
+        let dest_filename = format!("{}-{}.{}",
+            src_path.file_stem().unwrap().to_str().unwrap(),
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            src_path.extension().unwrap().to_str().unwrap());
+
+        let dest_path = src_path.parent().unwrap().join(format!("reloaded/{}", dest_filename));
+
+        fs::create_dir_all(dest_path.parent().unwrap()).unwrap();
+        fs::copy(&src_path, &dest_path).unwrap();
+
+        dest_path
+    } else {
+        src_path
+    }
+}
+
+
 extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
     app.with(|a| a.render_ui());
 }
@@ -42,7 +66,7 @@ thread_local! {
 
 impl<'a> App<'a> {
     pub fn new() -> Self {
-        let corelib = Library::new(CORELIB_PATH)
+        let corelib = Library::new(load_path(CORELIB_PATH))
             .expect("Failed to load core library.");
 
         let mut glfw = glfw::init(FAIL_ON_ERRORS).unwrap();
@@ -59,9 +83,7 @@ impl<'a> App<'a> {
 
         // Allow rendering while resizing due to wait_events / poll_events
         // locking the main loop on macOS (see https://github.com/glfw/glfw/issues/1).
-        if cfg!(target_os = "macos") { unsafe {
-            glfw::ffi::glfwSetWindowRefreshCallback(window.window_ptr(), Some(refresh_callback));
-        } }
+        unsafe { glfw::ffi::glfwSetWindowRefreshCallback(window.window_ptr(), Some(refresh_callback)); }
 
         window.make_current();
         gl::load_with(|symbol| window.get_proc_address(symbol));
@@ -88,7 +110,7 @@ impl<'a> App<'a> {
                     .expect("Failed to load font 'Inconsolata-Bold.ttf'"),
             }
         };
-        
+
         Self {
             corelib: RefCell::new(corelib),
             glfw: RefCell::new(glfw),
@@ -137,31 +159,15 @@ impl<'a> App<'a> {
         while !self.window.borrow().should_close() {
             // Enable live reloading of core lib in debug
             if cfg!(debug_assertions) {
-                if let Ok(Ok(modified)) = std::fs::metadata(CORELIB_PATH).map(|m| m.modified()) {
+                if let Ok(metadata) = std::fs::metadata(CORELIB_PATH) {
+                    let modified = metadata.modified().unwrap();
                     if modified > last_modified {
-                        use std::time::{SystemTime, UNIX_EPOCH};
-                        use std::path::Path;
-                        use std::fs;
-
-                        let src_path = Path::new(CORELIB_PATH);
-
-                        let dest_filename = format!("{}-{}.{}",
-                            src_path.file_stem().unwrap().to_str().unwrap(),
-                            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                            src_path.extension().unwrap().to_str().unwrap());
-
-                        let dest_path = src_path.parent().unwrap().join(format!("reloaded/{}", dest_filename));
-
-                        fs::create_dir_all(dest_path.parent().unwrap()).unwrap();
-                        fs::copy(&src_path, &dest_path).unwrap();
-
-                        // FIXME: Live reload currently doesn't work?!
                         drop(self.corelib.borrow_mut());
-                        *self.corelib.borrow_mut() = Library::new(dest_path.to_str().unwrap())
+                        *self.corelib.borrow_mut() = Library::new(load_path(CORELIB_PATH))
                             .expect("Failed to load core library.");
 
                         last_modified = modified;
-                        println!("Reloaded core library! {}", dest_filename);
+                        println!("Reloaded core library!");
                     }
                 }
             }
