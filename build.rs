@@ -4,6 +4,13 @@ use std::path::Path;
 use std::process::Command;
 
 fn main() {
+    if env::var_os("CARGO_FEATURE_LIVE_RELOAD").is_some() {
+        println!("Building as dynamic lib");
+        build_core_as_dylib();
+    }
+}
+
+fn build_core_as_dylib() {
     let profile = env::var("PROFILE").unwrap_or("debug".to_string());
     let current_dir = env::current_dir().unwrap();
 
@@ -14,7 +21,7 @@ fn main() {
         target = Path::new(&current_dir).join("target/debug");
     }
 
-    fs::remove_dir(Path::new(&target).join("reloaded"))
+    fs::remove_dir_all(Path::new(&target).join("reloaded"))
         .unwrap_or_else(|e| println!("Failed to clean reloaded directory: {}", e));
 
     Command::new("rustc")

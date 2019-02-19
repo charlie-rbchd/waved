@@ -1,45 +1,47 @@
 use glfw::{ Action, Context, Glfw, Key, OpenGlProfileHint, SwapInterval, Window, WindowEvent, WindowHint, WindowMode, FAIL_ON_ERRORS };
 
-use libloading::Library;
-
 use std::thread_local;
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::sync::mpsc::Receiver;
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::path::PathBuf;
-use std::fs;
 
 use crate::cli::CommandLineArgs;
 
-// TODO: Need a script that builds and copies the corelib *only*
-// TODO: pdbs (and others) probably need to be copied to for debugging purposes?
-#[cfg(all(target_os = "macos", debug_assertions))]
-const CORELIB_PATH: &'static str = "target/debug/libwaved_core.dylib";
-#[cfg(all(target_os = "linux", debug_assertions))]
-const CORELIB_PATH: &'static str = "target/debug/libwaved_core.so";
-#[cfg(all(target_os = "windows", debug_assertions))]
-const CORELIB_PATH: &'static str = "target/debug/waved_core.dll";
+#[cfg(feature = "live-reload")]
+use libloading::Library;
+#[cfg(feature = "live-reload")]
+use std::{fs, time::{SystemTime, UNIX_EPOCH}, path::PathBuf};
 
+#[cfg(all(target_os = "macos", feature = "live-reload"))]
+const CORELIB_PATH: &'static str = "target/debug/libwaved_core.dylib";
+#[cfg(all(target_os = "macos", feature = "live-reload", not(debug_assertions)))]
+const CORELIB_PATH: &'static str = "target/release/libwaved_core.dylib";
+#[cfg(all(target_os = "linux", feature = "live-reload"))]
+const CORELIB_PATH: &'static str = "target/debug/libwaved_core.so";
+#[cfg(all(target_os = "linux", feature = "live-reload", not(debug_assertions)))]
+const CORELIB_PATH: &'static str = "target/release/libwaved_core.so";
+#[cfg(all(target_os = "windows", feature = "live-reload"))]
+const CORELIB_PATH: &'static str = "target/debug/waved_core.dll";
+#[cfg(all(target_os = "windows", feature = "live-reload", not(debug_assertions)))]
+const CORELIB_PATH: &'static str = "target/release/waved_core.dll";
+
+#[cfg(feature = "live-reload")]
 fn load_path(lib_path: &str) -> PathBuf {
     let src_path = PathBuf::from(lib_path);
-    if cfg!(debug_assertions) {
-        // Most systems either lock or cache dynamic libraries once they are loaded by an application,
-        // make a unique copy of it to allow hot reloading (debug only)
-        let dest_filename = format!("{}-{}.{}",
-            src_path.file_stem().unwrap().to_str().unwrap(),
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-            src_path.extension().unwrap().to_str().unwrap());
 
-        let dest_path = src_path.parent().unwrap().join(format!("reloaded/{}", dest_filename));
+    // Most systems either lock or cache dynamic libraries once they are loaded by an application,
+    // make a unique copy of it to allow hot reloading (debug only)
+    let dest_filename = format!("{}-{}.{}",
+        src_path.file_stem().unwrap().to_str().unwrap(),
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+        src_path.extension().unwrap().to_str().unwrap());
 
-        fs::create_dir_all(dest_path.parent().unwrap()).unwrap();
-        fs::copy(&src_path, &dest_path).unwrap();
+    let dest_path = src_path.parent().unwrap().join(format!("reloaded/{}", dest_filename));
 
-        dest_path
-    } else {
-        src_path
-    }
+    fs::create_dir_all(dest_path.parent().unwrap()).unwrap();
+    fs::copy(&src_path, &dest_path).unwrap();
+
+    dest_path
 }
 
 extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
@@ -53,12 +55,14 @@ struct Fonts<'a> {
 }
 
 pub struct App<'a> {
-    corelib: RefCell<Library>,
     glfw: RefCell<Glfw>,
     window: RefCell<Window>,
     events: Receiver<(f64, WindowEvent)>,
     context: Box<nanovg::Context>,
     fonts: Fonts<'a>,
+
+    #[cfg(feature = "live-reload")]
+    corelib: RefCell<Library>,
 }
 
 thread_local! {
@@ -67,9 +71,6 @@ thread_local! {
 
 impl<'a> App<'a> {
     pub fn new() -> Self {
-        let corelib = Library::new(load_path(CORELIB_PATH))
-            .expect("Failed to load core library.");
-
         let mut glfw = glfw::init(FAIL_ON_ERRORS).unwrap();
 
         glfw.window_hint(WindowHint::ContextVersion(3, 2));
@@ -112,13 +113,19 @@ impl<'a> App<'a> {
             }
         };
 
+        #[cfg(feature = "live-reload")]
+        let corelib = Library::new(load_path(CORELIB_PATH))
+            .expect("Failed to load core library.");
+
         Self {
-            corelib: RefCell::new(corelib),
             glfw: RefCell::new(glfw),
             window: RefCell::new(window),
             events,
             context,
             fonts,
+
+            #[cfg(feature = "live-reload")]
+            corelib: RefCell::new(corelib),
         }
     }
 
@@ -153,14 +160,14 @@ impl<'a> App<'a> {
             println!("Files {:?}", args.files);
         }
 
-        #[cfg(debug_assertions)]
-        let mut last_modified = std::fs::metadata(CORELIB_PATH).unwrap()
+        #[cfg(feature = "live-reload")]
+        let mut last_modified = fs::metadata(CORELIB_PATH).unwrap()
             .modified().unwrap();
 
         while !self.window.borrow().should_close() {
-            // Enable live reloading of core lib in debug
-            if cfg!(debug_assertions) {
-                if let Ok(metadata) = std::fs::metadata(CORELIB_PATH) {
+            #[cfg(feature = "live-reload")]
+            {
+                if let Ok(metadata) = fs::metadata(CORELIB_PATH) {
                     let modified = metadata.modified().unwrap();
                     if modified > last_modified {
                         drop(self.corelib.borrow_mut());
@@ -182,14 +189,20 @@ impl<'a> App<'a> {
         }
     }
 
-    fn get_message(&self) -> &'static str { unsafe {
-        let l = self.corelib.borrow();
-        if let Ok(f) = l.get::<fn() -> &'static str>(b"get_message\0") {
-            f()
-        } else {
-            ""
+    fn get_message(&self) -> &'static str {
+        #[cfg(feature = "live-reload")]
+        {
+            let l = self.corelib.borrow();
+            if let Ok(f) = unsafe { l.get::<fn() -> &'static str>(b"get_message\0") } {
+                f()
+            } else {
+                ""
+            }
         }
-    } }
+        
+        #[cfg(not(feature = "live-reload"))]
+        waved_core::get_message()
+    }
 
     fn dpi_scale(&self) -> f32 {
         let (logical_width, _) = self.window.borrow().get_framebuffer_size();

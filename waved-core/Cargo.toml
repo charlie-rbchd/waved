@@ -4,7 +4,4 @@ version = "0.1.0"
 authors = ["Joel Robichaud <robichaud.jo@gmail.com>"]
 edition = "2018"
 
-[lib]
-crate-type = ["dylib"]
-
 [dependencies]
