@@ -1,17 +1,22 @@
 # waved
 Fast, modal wave editor
 
-## Contributing
-### Using live-reload
-1. Install `cargo-watch`:
+## Using live-reload
+### Prerequisites
+You need to have `cargo-watch` installed:
 ```
 cargo install cargo-watch
 ```
-2. Run the following command at the root of the repository (do not launch the process in a debugger, reloading will not work):
+
+### Setup
+By far the easiest way to have live reload working is to use the provided Visual Studio Code tasks. The watcher tasks run automatically in the background once the project is opened, so it's just a matter of running the `cargo live edit` task.
+
+Nevertheless, here are the manual steps to achieve the same result.
+1. Run the following command at the root of the repository (do not launch the process in a debugger, reloading will not work):
 ```
 cargo run --features "live-reload"
 ```
-3. Run the following cargo-watch commands in parallel in the `waved-core` directory:
+2. Run the following cargo-watch commands in parallel in the `waved-core` directory:
 ```
 cargo watch -w src -x build -s 'touch .trigger-watch'
 cargo watch --no-gitignore -w .trigger-watch -s 'mv -f target/debug/libwaved_core.dylib ../target/debug/libwaved_core.dylib'
