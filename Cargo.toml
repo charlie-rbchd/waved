@@ -12,11 +12,11 @@ copyright = "Copyright (c) Joel Robichaud 2019. All rights reserved."
 resources = ["resources"]
 
 [features]
+live-reload = []
 default = []
-live-reload = ["libloading"]
 
 [dependencies]
-libloading = { version = "0.5.0", optional = true }
+libloading = { version = "0.5.0" }
 gl = "0.10.0"
 glfw = "0.26.0"
 nanovg = { version = "1.0.2", features = ["gl3"] }

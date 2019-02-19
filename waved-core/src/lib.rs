@@ -1,6 +1,6 @@
 #[no_mangle]
 pub fn get_message() -> &'static str {
-    "Hello, Whatever stuff debugger asd..."
+    "Hello, World!"
 }
 
 #[cfg(test)]

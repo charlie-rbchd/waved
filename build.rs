@@ -4,13 +4,6 @@ use std::path::Path;
 use std::process::Command;
 
 fn main() {
-    if env::var_os("CARGO_FEATURE_LIVE_RELOAD").is_some() {
-        println!("Building as dynamic lib");
-        build_core_as_dylib();
-    }
-}
-
-fn build_core_as_dylib() {
     let profile = env::var("PROFILE").unwrap_or("debug".to_string());
     let current_dir = env::current_dir().unwrap();
 
