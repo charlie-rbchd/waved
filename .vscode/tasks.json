@@ -1,0 +1,76 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558 
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "cargo watch core",
+            "command": "cargo",
+            "options": {
+                "cwd": "${workspaceFolder}/waved-core"
+            },
+            "args": [
+                "watch",
+                "-w", "src",
+                "-x", "build",
+                "-s", "'touch .trigger-watch'"
+            ],
+            "problemMatcher": [ "$rustc" ],
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
+        },
+        {
+            "type": "shell",
+            "label": "cargo reload core",
+            "command": "cargo",
+            "options": {
+                "cwd": "${workspaceFolder}/waved-core"
+            },
+            "linux": {
+                "args": [
+                    "watch",
+                    "--no-gitignore",
+                    "-w", ".trigger-watch",
+                    "-s", "'mv -f target/debug/libwaved_core.so ../target/debug/libwaved_core.so'"
+                ]
+            },
+            "osx": {
+                "args": [
+                    "watch",
+                    "--no-gitignore",
+                    "-w", ".trigger-watch",
+                    "-s", "'mv -f target/debug/libwaved_core.dylib ../target/debug/libwaved_core.dylib'"
+                ]
+            },
+            "windows": {
+                "args": [
+                    "watch",
+                    "--no-gitignore",
+                    "-w", ".trigger-watch",
+                    "-s", "'mv -f target/debug/waved_core.dll ../target/debug/waved_core.dll'"
+                ]
+            },
+            "problemMatcher": [],
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
+        },
+        {
+            "type": "shell",
+            "label": "cargo live edit",
+            "command": "cargo",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "args": [
+                "run",
+                "--features", "'live-reload'"
+            ],
+            "problemMatcher": [],
+        }
+    ]
+}
