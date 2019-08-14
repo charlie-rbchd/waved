@@ -9,7 +9,7 @@ cargo install cargo-watch
 ```
 
 ### Setup
-By far the easiest way to have live reload working is to use the provided Visual Studio Code tasks. The watcher tasks run automatically in the background once the project is opened, so it's just a matter of running the `cargo live edit` task.
+By far the easiest way to have live reload working is to use the provided Visual Studio Code tasks. The watcher tasks run automatically in the background once the project is opened, so it's just a matter of running the `Run (live-reload)` task.
 
 Nevertheless, here are the manual steps to achieve the same result.
 1. Run the following command at the root of the repository (do not launch the process in a debugger, reloading will not work):
