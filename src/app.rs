@@ -42,11 +42,36 @@ fn dylib_load_path(lib_filename: &str) -> PathBuf {
         std::fs::create_dir_all(dest_path.parent().unwrap()).unwrap();
         std::fs::copy(&src_path, &dest_path).unwrap();
 
+        // Some systems embed an identifier into the dyamic library and uses that for caching,
+        // make sure that identifier is updated to reflect the new location of the library
+        if cfg!(target_os = "macos") {
+            let dest_str = dest_path.to_str().unwrap();
+            let status = std::process::Command::new("install_name_tool")
+                .args(&["-id", &dest_str, &dest_str])
+                .status()
+                .expect("Failed to change dylib identifier.");
+            assert!(status.success());
+        } else if cfg!(target_os = "linux") {
+            // TODO: Validate if `patchelf --set-soname` is needed for live reloading
+            // to work properly on Linux
+        }
+
         dest_path
     }
 
     #[cfg(not(feature = "live-reload"))]
     src_path
+}
+
+#[cfg(feature = "live-reload")]
+fn clean_reloaded_dylib() {
+    let reloaded_folder = std::env::current_exe().unwrap()
+        .parent().unwrap()
+        .join("reloaded");
+
+    if std::fs::remove_dir_all(&reloaded_folder).is_ok() {
+        println!("Cleaned up reloaded folder.");
+    }
 }
 
 extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
@@ -59,6 +84,7 @@ struct Fonts<'a> {
     bold: nanovg::Font<'a>,
 }
 
+#[allow(dead_code)]
 pub struct App<'a> {
     corelib: RefCell<Library>,
     glfw: RefCell<Glfw>,
@@ -69,11 +95,15 @@ pub struct App<'a> {
 }
 
 thread_local! {
+    #[allow(non_upper_case_globals)]
     pub static app: App<'static> = App::new();
 }
 
 impl<'a> App<'a> {
     pub fn new() -> Self {
+        #[cfg(feature = "live-reload")]
+        clean_reloaded_dylib();
+
         let corelib = Library::new(dylib_load_path(CORELIB_FILENAME))
             .expect("Failed to load core library.");
 
@@ -132,24 +162,12 @@ impl<'a> App<'a> {
     pub fn render_ui(&self) {
         self.clear();
 
-        // TODO: Implement a scene graph
-        // TODO: Less frequent redraws (dirty state checking)
         let (physical_width, physical_height) = self.window.borrow().get_size();
         self.context.frame((physical_width as f32, physical_height as f32), self.dpi_scale(), |frame| {
-            frame.path(
-                |path| {
-                    path.rect((0.0, 0.0), (100.0, 100.0));
-                    path.fill(nanovg::Color::from_rgb(255, 255, 0), Default::default());
-                },
-                Default::default()
-            );
-
-            frame.text(self.fonts.regular, (200.0, 100.0), self.get_message(), nanovg::TextOptions {
-                color: nanovg::Color::from_rgb(240, 240, 240),
-                align: nanovg::Alignment::new().left().top(),
-                size: 16.0,
-                ..Default::default()
-            });
+            let corelib = self.corelib.borrow();
+            if let Ok(render) = unsafe { corelib.get::<fn(&nanovg::Frame, &nanovg::Font)>(b"render\0") } {
+                render(&frame, &self.fonts.regular);
+            }
         });
 
         self.window.borrow_mut().swap_buffers();
@@ -186,15 +204,6 @@ impl<'a> App<'a> {
             for (_, event) in glfw::flush_messages(&self.events) {
                 self.process_event(event);
             }
-        }
-    }
-
-    fn get_message(&self) -> &'static str {
-        let l = self.corelib.borrow();
-        if let Ok(f) = unsafe { l.get::<fn() -> &'static str>(b"get_message\0") } {
-            f()
-        } else {
-            ""
         }
     }
 

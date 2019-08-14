@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Fast, modal wave editor"
 authors = ["Joel Robichaud <robichaud.jo@gmail.com>"]
 edition = "2018"
-build = "build.rs"
 
 [package.metadata.bundle]
 identifier = "com.joelrobichaud.waved"
@@ -16,15 +15,10 @@ live-reload = []
 default = []
 
 [dependencies]
-libloading = { version = "0.5.0" }
+libloading = "0.5"
 gl = "0.10.0"
 glfw = "0.26.0"
 nanovg = { version = "1.0.2", features = ["gl3"] }
 nfd = "0.0.4"
 portaudio = "0.7.0"
 clap = "2.32.0"
-# lazy_static = "1.2.0"
-# owning_ref = "0.4.0"
-
-[dependencies.waved-core]
-path = "waved-core"
