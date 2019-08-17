@@ -1,18 +1,14 @@
+use std::thread_local;
+
+mod renderer;
+use renderer::Renderer;
+
+thread_local! {
+    #[allow(non_upper_case_globals)]
+    static renderer: Renderer<'static> = Renderer::new();
+}
+
 #[no_mangle]
-pub fn render(frame: &nanovg::Frame, font: &nanovg::Font) {
-    frame.path(
-        |path| {
-            path.rect((50.0, 50.0), (100.0, 100.0));
-            path.fill(nanovg::Color::from_rgb(255, 255, 255), Default::default());
-        },
-        Default::default()
-
-    );
-
-    frame.text(*font, (200.0, 100.0), "Hello, world!", nanovg::TextOptions {
-        color: nanovg::Color::from_rgb(240, 240, 240),
-        align: nanovg::Alignment::new().left().top(),
-        size: 16.0,
-        ..Default::default()
-    });
+pub extern "C" fn render(width: f32, height: f32, scale: f32) {
+    renderer.with(|r| r.render(width, height, scale));
 }

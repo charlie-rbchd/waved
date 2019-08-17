@@ -1,10 +1,9 @@
-use glfw::{ Action, Context, Glfw, Key, OpenGlProfileHint, SwapInterval, Window, WindowEvent, WindowHint, WindowMode, FAIL_ON_ERRORS };
+use glfw::{Action, Context, Glfw, Key, OpenGlProfileHint, SwapInterval, Window, WindowEvent, WindowHint, WindowMode, FAIL_ON_ERRORS};
 
 use libloading::Library;
 
 use std::thread_local;
 use std::cell::RefCell;
-use std::ops::Deref;
 use std::sync::mpsc::Receiver;
 use std::path::PathBuf;
 
@@ -79,27 +78,19 @@ extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
 }
 
 #[allow(dead_code)]
-struct Fonts<'a> {
-    regular: nanovg::Font<'a>,
-    bold: nanovg::Font<'a>,
-}
-
-#[allow(dead_code)]
-pub struct App<'a> {
+pub struct App {
     corelib: RefCell<Library>,
     glfw: RefCell<Glfw>,
     window: RefCell<Window>,
     events: Receiver<(f64, WindowEvent)>,
-    context: Box<nanovg::Context>,
-    fonts: Fonts<'a>,
 }
 
 thread_local! {
     #[allow(non_upper_case_globals)]
-    pub static app: App<'static> = App::new();
+    pub static app: App = App::new();
 }
 
-impl<'a> App<'a> {
+impl App {
     pub fn new() -> Self {
         #[cfg(feature = "live-reload")]
         clean_reloaded_dylib();
@@ -127,35 +118,13 @@ impl<'a> App<'a> {
         gl::load_with(|symbol| window.get_proc_address(symbol));
         glfw.set_swap_interval(SwapInterval::Sync(1)); // Enable vsync
 
-        // Has to be heap-allocated since we take it's address when creating fonts.
-        let context = Box::new(nanovg::ContextBuilder::new()
-            .antialias()
-            .stencil_strokes()
-            .build()
-            .expect("Failed to create a drawing context."));
-
-        // Perform some unsafe pointer gymnastics to ignore lifetime constraints,
-        // making it possible to store context and fonts in the same struct even though
-        // context would normally have to outlive fonts since it is borrowed in
-        // the call to nanovg::Font::from_file.
-        let fonts = {
-            let context_ptr = context.deref() as *const _;
-            Fonts {
-                regular: nanovg::Font::from_file(unsafe { &*context_ptr }, "Inconsolata-Regular", "resources/Inconsolata-Regular.ttf")
-                    .expect("Failed to load font 'Inconsolata-Regular.ttf'"),
-
-                bold: nanovg::Font::from_file(unsafe { &*context_ptr }, "Inconsolata-Bold", "resources/Inconsolata-Bold.ttf")
-                    .expect("Failed to load font 'Inconsolata-Bold.ttf'"),
-            }
-        };
+        if let Ok(init) = unsafe { corelib.get::<fn()>(b"init\0") } { init(); }
 
         Self {
             corelib: RefCell::new(corelib),
             glfw: RefCell::new(glfw),
             window: RefCell::new(window),
             events,
-            context,
-            fonts,
         }
     }
 
@@ -163,12 +132,10 @@ impl<'a> App<'a> {
         self.clear();
 
         let (physical_width, physical_height) = self.window.borrow().get_size();
-        self.context.frame((physical_width as f32, physical_height as f32), self.dpi_scale(), |frame| {
-            let corelib = self.corelib.borrow();
-            if let Ok(render) = unsafe { corelib.get::<fn(&nanovg::Frame, &nanovg::Font)>(b"render\0") } {
-                render(&frame, &self.fonts.regular);
-            }
-        });
+        let corelib = self.corelib.borrow();
+        if let Ok(render) = unsafe { corelib.get::<fn(f32, f32, f32)>(b"render\0") } {
+            render(physical_width as f32, physical_height as f32, self.dpi_scale());
+        }
 
         self.window.borrow_mut().swap_buffers();
     }
