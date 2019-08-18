@@ -1,8 +1,8 @@
 [package]
-name = "waved-sndfile"
+name = "waved-state"
 version = "0.1.0"
 authors = ["Joel Robichaud <robichaud.jo@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-nom = "4.2.0"
+hound = "3.4.0"

@@ -1,6 +1,7 @@
 use nanovg::{Alignment, Color, Context, ContextBuilder, Font, TextOptions};
-
 use std::ops::Deref;
+
+use waved_state::State;
 
 #[allow(dead_code)]
 pub struct Fonts<'a> {
@@ -40,8 +41,8 @@ impl<'a> Renderer<'a> {
         Self { context, fonts }
     }
 
-    pub fn render(&self, width: f32, height: f32, scale: f32) {
-        self.context.frame((width, height), scale, |frame| {
+    pub fn render(&self, state: &State, viewport: (f32, f32), scale: f32) {
+        self.context.frame(viewport, scale, |frame| {
             frame.path(
                 |path| {
                     path.rect((50.0, 50.0), (100.0, 100.0));

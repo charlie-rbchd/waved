@@ -5,7 +5,48 @@
     "tasks": [
         {
             "type": "shell",
+            "label": "Build (app)",
+            "group": "build",
+            "command": "cargo",
+            "args": [
+                "build",
+                "--features", "'live-reload'"
+            ],
+            "problemMatcher": [ "$rustc" ]
+        },
+        {
+            "type": "shell",
+            "label": "Build (waved-core)",
+            "group": "build",
+            "command": "cargo",
+            "options": {
+                "cwd": "${workspaceFolder}/waved-core"
+            },
+            "linux": {
+                "args": [
+                    "build",
+                    "&&", "mv", "-f", "target/debug/libwaved_core.so", "../target/debug/libwaved_core.so"
+                ]
+            },
+            "osx": {
+                "args": [
+                    "build",
+                    "&&", "mv", "-f", "target/debug/libwaved_core.dylib", "../target/debug/libwaved_core.dylib",
+                    "&&", "install_name_tool", "-id", "${workspaceFolder}/target/debug/libwaved_core.dylib", "target/debug/libwaved_core.dylib"
+                ]
+            },
+            "windows": {
+                "args": [
+                    "build",
+                    "&&", "mv", "-f", "target/debug/waved_core.dll", "../target/debug/waved_core.dll"
+                ]
+            },
+            "problemMatcher": [ "$rustc" ]
+        },
+        {
+            "type": "shell",
             "label": "Watch (waved-core)",
+            "group": "build",
             "command": "cargo",
             "options": {
                 "cwd": "${workspaceFolder}/waved-core"
@@ -17,14 +58,12 @@
                 "-s", "'touch .trigger-watch'"
             ],
             "problemMatcher": [ "$rustc" ],
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "folderOpen"
-            }
+            "isBackground": true
         },
         {
             "type": "shell",
             "label": "Reload (waved-core)",
+            "group": "build",
             "command": "cargo",
             "options": {
                 "cwd": "${workspaceFolder}/waved-core"
@@ -54,10 +93,7 @@
                 ]
             },
             "problemMatcher": [],
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "folderOpen"
-            }
+            "isBackground": true
         },
         {
             "type": "shell",

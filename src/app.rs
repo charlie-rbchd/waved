@@ -1,11 +1,12 @@
 use glfw::{Action, Context, Glfw, Key, OpenGlProfileHint, SwapInterval, Window, WindowEvent, WindowHint, WindowMode, FAIL_ON_ERRORS};
-
 use libloading::Library;
 
-use std::thread_local;
 use std::cell::RefCell;
-use std::sync::mpsc::Receiver;
 use std::path::PathBuf;
+use std::sync::mpsc::Receiver;
+use std::thread_local;
+
+use waved_state::State;
 
 use crate::cli::CommandLineArgs;
 
@@ -83,6 +84,7 @@ pub struct App {
     glfw: RefCell<Glfw>,
     window: RefCell<Window>,
     events: Receiver<(f64, WindowEvent)>,
+    state: RefCell<State>,
 }
 
 thread_local! {
@@ -95,6 +97,7 @@ impl App {
         #[cfg(feature = "live-reload")]
         clean_reloaded_dylib();
 
+        let state = Default::default();
         let corelib = Library::new(dylib_load_path(CORELIB_FILENAME))
             .expect("Failed to load core library.");
 
@@ -118,13 +121,12 @@ impl App {
         gl::load_with(|symbol| window.get_proc_address(symbol));
         glfw.set_swap_interval(SwapInterval::Sync(1)); // Enable vsync
 
-        if let Ok(init) = unsafe { corelib.get::<fn()>(b"init\0") } { init(); }
-
         Self {
             corelib: RefCell::new(corelib),
             glfw: RefCell::new(glfw),
             window: RefCell::new(window),
             events,
+            state: RefCell::new(state),
         }
     }
 
@@ -133,8 +135,8 @@ impl App {
 
         let (physical_width, physical_height) = self.window.borrow().get_size();
         let corelib = self.corelib.borrow();
-        if let Ok(render) = unsafe { corelib.get::<fn(f32, f32, f32)>(b"render\0") } {
-            render(physical_width as f32, physical_height as f32, self.dpi_scale());
+        if let Ok(render) = unsafe { corelib.get::<fn(&State, (f32, f32), f32)>(b"render\0") } {
+            render(&self.state.borrow(), (physical_width as f32, physical_height as f32), self.dpi_scale());
         }
 
         self.window.borrow_mut().swap_buffers();
@@ -201,9 +203,11 @@ impl App {
                     .expect("Failed to open file dialog.");
 
                 match result {
-                    nfd::Response::Okay(file_path) => println!("File path = {:?}", file_path),
-                    nfd::Response::OkayMultiple(_) => panic!("User should only be able to select a single file."),
-                    nfd::Response::Cancel => println!("User canceled"),
+                    nfd::Response::Okay(filename) => {
+                        self.state.borrow_mut().set_reader(filename);
+                    },
+                    nfd::Response::OkayMultiple(_) => panic!("Should only be able to select a single file."),
+                    nfd::Response::Cancel => {},
                 }
             },
             WindowEvent::Key(Key::S, _, Action::Press, _) => {
@@ -213,7 +217,9 @@ impl App {
                 // });
             },
             WindowEvent::FileDrop(files) => {
-                println!("Files {:?}", files);
+                if files.len() > 0 {
+                    self.state.borrow_mut().set_reader(&files[0]);
+                }
             }
             _ => {}
         }
