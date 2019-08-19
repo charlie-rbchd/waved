@@ -1,8 +1,9 @@
 use std::thread_local;
 
-use waved_state::State;
 mod renderer;
-use renderer::Renderer;
+pub use renderer::Renderer;
+mod state;
+pub use state::State;
 
 thread_local! {
     #[allow(non_upper_case_globals)]

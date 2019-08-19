@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 use std::thread_local;
 
-use waved_state::State;
+use waved_core::State;
 
 use crate::cli::CommandLineArgs;
 
@@ -204,7 +204,7 @@ impl App {
 
                 match result {
                     nfd::Response::Okay(filename) => {
-                        self.state.borrow_mut().set_reader(filename);
+                        self.state.borrow_mut().current_file = Some(PathBuf::from(filename));
                     },
                     nfd::Response::OkayMultiple(_) => panic!("Should only be able to select a single file."),
                     nfd::Response::Cancel => {},
@@ -218,7 +218,7 @@ impl App {
             },
             WindowEvent::FileDrop(files) => {
                 if files.len() > 0 {
-                    self.state.borrow_mut().set_reader(&files[0]);
+                    self.state.borrow_mut().current_file = Some(files[0].clone());
                 }
             }
             _ => {}

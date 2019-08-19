@@ -22,5 +22,5 @@ nfd = "0.0.4"
 clap = "2.32.0"
 portaudio = "0.7.0"
 
-[dependencies.waved-state]
-path = "waved-state"
+[dependencies.waved-core]
+path = "waved-core"

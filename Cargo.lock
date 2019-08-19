@@ -146,6 +146,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nanovg"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "nanovg-sys 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "nanovg-sys"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cc 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "nfd"
 version = "0.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -324,14 +341,15 @@ dependencies = [
  "libloading 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "nfd 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "portaudio 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "waved-state 0.1.0",
+ "waved-core 0.1.0",
 ]
 
 [[package]]
-name = "waved-state"
+name = "waved-core"
 version = "0.1.0"
 dependencies = [
  "hound 3.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nanovg 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -381,6 +399,8 @@ dependencies = [
 "checksum libc 0.2.55 (registry+https://github.com/rust-lang/crates.io-index)" = "42914d39aad277d9e176efbdad68acb1d5443ab65afe0e0e4f0d49352a950880"
 "checksum libloading 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9c3ad660d7cb8c5822cd83d10897b0f1f1526792737a179e73896152f85b88c2"
 "checksum log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)" = "c84ec4b527950aa83a329754b01dbe3f58361d1c5efacd1f6d68c494d08a17c6"
+"checksum nanovg 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f1d9e6da9031cb3f36614160ac7424e65ad5cc86b25ca3b6f17f7053b18905d4"
+"checksum nanovg-sys 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b2930972e68f3956b728b005ec6995dda334f19c764fdb919fc32462b89ad76e"
 "checksum nfd 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "8e752e3c216bc8a491c5b59fa46da10f1379ae450b19ac688e07f4bb55042e98"
 "checksum nom 1.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "a5b8c256fd9471521bcb84c3cdba98921497f1a331cbc15b8030fc63b82050ce"
 "checksum num 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)" = "4703ad64153382334aa8db57c637364c322d3372e097840c72000dabdcf6156e"

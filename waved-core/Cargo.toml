@@ -9,6 +9,4 @@ crate-type = ["dylib"]
 
 [dependencies]
 nanovg = { version = "1.0.2", features = ["gl3"] }
-
-[dependencies.waved-state]
-path = "../waved-state"
+hound = "3.4.0"

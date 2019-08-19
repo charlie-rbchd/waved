@@ -1,8 +1,0 @@
-[package]
-name = "waved-state"
-version = "0.1.0"
-authors = ["Joel Robichaud <robichaud.jo@gmail.com>"]
-edition = "2018"
-
-[dependencies]
-hound = "3.4.0"
