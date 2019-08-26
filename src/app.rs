@@ -11,11 +11,11 @@ use waved_core::State;
 use crate::cli::CommandLineArgs;
 
 #[cfg(target_os = "macos")]
-const CORELIB_FILENAME: &'static str = "libwaved_gui.dylib";
+const GUILIB_FILENAME: &'static str = "libwaved_gui.dylib";
 #[cfg(target_os = "linux")]
-const CORELIB_FILENAME: &'static str = "libwaved_gui.so";
+const GUILIB_FILENAME: &'static str = "libwaved_gui.so";
 #[cfg(target_os = "windows")]
-const CORELIB_FILENAME: &'static str = "waved_gui.dll";
+const GUILIB_FILENAME: &'static str = "waved_gui.dll";
 
 fn dylib_path(lib_filename: &str) -> PathBuf {
     std::env::current_exe().unwrap()
@@ -75,12 +75,12 @@ fn clean_reloaded_dylib() {
 }
 
 extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
-    app.with(|a| a.render_ui());
+    app.with(|a| a.render_gui());
 }
 
 #[allow(dead_code)]
 pub struct App {
-    corelib: RefCell<Library>,
+    gui: RefCell<Library>,
     glfw: RefCell<Glfw>,
     window: RefCell<Window>,
     events: Receiver<(f64, WindowEvent)>,
@@ -98,7 +98,7 @@ impl App {
         clean_reloaded_dylib();
 
         let state = Default::default();
-        let corelib = Library::new(dylib_load_path(CORELIB_FILENAME))
+        let gui = Library::new(dylib_load_path(GUILIB_FILENAME))
             .expect("Failed to load core library.");
 
         let mut glfw = glfw::init(FAIL_ON_ERRORS).unwrap();
@@ -122,7 +122,7 @@ impl App {
         glfw.set_swap_interval(SwapInterval::Sync(1)); // Enable vsync
 
         Self {
-            corelib: RefCell::new(corelib),
+            gui: RefCell::new(gui),
             glfw: RefCell::new(glfw),
             window: RefCell::new(window),
             events,
@@ -130,12 +130,12 @@ impl App {
         }
     }
 
-    pub fn render_ui(&self) {
+    pub fn render_gui(&self) {
         self.clear();
 
         let (physical_width, physical_height) = self.window.borrow().get_size();
-        let corelib = self.corelib.borrow();
-        if let Ok(render) = unsafe { corelib.get::<fn(&State, (f32, f32), f32)>(b"render\0") } {
+        let gui = self.gui.borrow();
+        if let Ok(render) = unsafe { gui.get::<fn(&State, (f32, f32), f32)>(b"render\0") } {
             render(&self.state.borrow(), (physical_width as f32, physical_height as f32), self.dpi_scale());
         }
 
@@ -148,17 +148,17 @@ impl App {
         }
 
         #[cfg(feature = "live-reload")]
-        let mut last_modified = std::fs::metadata(dylib_path(CORELIB_FILENAME)).unwrap()
+        let mut last_modified = std::fs::metadata(dylib_path(GUILIB_FILENAME)).unwrap()
             .modified().unwrap();
 
         while !self.window.borrow().should_close() {
             #[cfg(feature = "live-reload")]
             {
-                if let Ok(metadata) = std::fs::metadata(dylib_path(CORELIB_FILENAME)) {
+                if let Ok(metadata) = std::fs::metadata(dylib_path(GUILIB_FILENAME)) {
                     let modified = metadata.modified().unwrap();
                     if modified > last_modified {
-                        drop(self.corelib.borrow_mut());
-                        *self.corelib.borrow_mut() = Library::new(dylib_load_path(CORELIB_FILENAME))
+                        drop(self.gui.borrow_mut());
+                        *self.gui.borrow_mut() = Library::new(dylib_load_path(GUILIB_FILENAME))
                             .expect("Failed to load core library.");
 
                         last_modified = modified;
@@ -167,7 +167,7 @@ impl App {
                 }
             }
 
-            self.render_ui();
+            self.render_gui();
 
             self.glfw.borrow_mut().poll_events();
             for (_, event) in glfw::flush_messages(&self.events) {
