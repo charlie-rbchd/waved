@@ -2,7 +2,7 @@ use glfw::{Action, Context, Glfw, Key, OpenGlProfileHint, SwapInterval, Window, 
 use libloading::Library;
 
 use std::cell::RefCell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
 use std::thread_local;
 
@@ -11,11 +11,11 @@ use waved_core::State;
 use crate::cli::CommandLineArgs;
 
 #[cfg(target_os = "macos")]
-const CORELIB_FILENAME: &'static str = "libwaved_core.dylib";
+const CORELIB_FILENAME: &'static str = "libwaved_gui.dylib";
 #[cfg(target_os = "linux")]
-const CORELIB_FILENAME: &'static str = "libwaved_core.so";
+const CORELIB_FILENAME: &'static str = "libwaved_gui.so";
 #[cfg(target_os = "windows")]
-const CORELIB_FILENAME: &'static str = "waved_core.dll";
+const CORELIB_FILENAME: &'static str = "waved_gui.dll";
 
 fn dylib_path(lib_filename: &str) -> PathBuf {
     std::env::current_exe().unwrap()
@@ -204,7 +204,7 @@ impl App {
 
                 match result {
                     nfd::Response::Okay(filename) => {
-                        self.state.borrow_mut().current_file = Some(PathBuf::from(filename));
+                        self.load_file(filename);
                     },
                     nfd::Response::OkayMultiple(_) => panic!("Should only be able to select a single file."),
                     nfd::Response::Cancel => {},
@@ -218,11 +218,15 @@ impl App {
             },
             WindowEvent::FileDrop(files) => {
                 if files.len() > 0 {
-                    self.state.borrow_mut().current_file = Some(files[0].clone());
+                    self.load_file(&files[0]);
                 }
             }
             _ => {}
         }
+    }
+
+    fn load_file<P: AsRef<Path>>(&self, filename: P) {
+        // TODO: To be implemented, read file and dump samples in the state
     }
 }
 

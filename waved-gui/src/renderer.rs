@@ -1,20 +1,24 @@
-use nanovg::{Alignment, Color, Context, ContextBuilder, Font, TextOptions};
+#![allow(dead_code)]
+
+use nanovg::{Context, ContextBuilder, Font};
+
 use std::ops::Deref;
 
-use crate::state::State;
+use waved_core::State;
 
-#[allow(dead_code)]
-pub struct Fonts<'a> {
-    regular: Font<'a>,
-    bold: Font<'a>,
+pub struct Fonts<'f> {
+    regular: Font<'f>,
+    bold: Font<'f>,
 }
 
-pub struct Renderer<'a> {
+pub struct Renderer<'f> {
     context: Box<Context>,
-    fonts: Fonts<'a>,
+    fonts: Fonts<'f>,
 }
 
-impl<'a> Renderer<'a> {
+enum DisplayError {}
+
+impl<'f> Renderer<'f> {
     pub fn new() -> Self {
         // Has to be heap-allocated since we take it's address when creating fonts.
         let context = Box::new(ContextBuilder::new()
@@ -31,10 +35,10 @@ impl<'a> Renderer<'a> {
             let context_ptr = context.deref() as *const _;
             Fonts {
                 regular: Font::from_file(unsafe { &*context_ptr }, "Inconsolata-Regular", "resources/Inconsolata-Regular.ttf")
-                    .expect("Failed to load font 'Inconsolata-Regular.ttf'"),
+                    .expect("Failed to load font `Inconsolata-Regular.ttf`."),
 
                 bold: Font::from_file(unsafe { &*context_ptr }, "Inconsolata-Bold", "resources/Inconsolata-Bold.ttf")
-                    .expect("Failed to load font 'Inconsolata-Bold.ttf'"),
+                    .expect("Failed to load font `Inconsolata-Bold.ttf`."),
             }
         };
 
@@ -42,22 +46,8 @@ impl<'a> Renderer<'a> {
     }
 
     pub fn render(&self, _state: &State, viewport: (f32, f32), scale: f32) {
-        // TODO: Render waveform from state.current_file
-        self.context.frame(viewport, scale, |frame| {
-            frame.path(
-                |path| {
-                    path.rect((50.0, 50.0), (100.0, 100.0));
-                    path.fill(Color::from_rgb(255, 255, 255), Default::default());
-                },
-                Default::default()
-            );
-
-            frame.text(self.fonts.regular, (200.0, 100.0), "Hello, world!", TextOptions {
-                color: Color::from_rgb(240, 240, 240),
-                align: Alignment::new().left().top(),
-                size: 16.0,
-                ..Default::default()
-            });
+        self.context.frame(viewport, scale, |_frame| {
+            // TODO: Render waveform from state
         });
     }
 }

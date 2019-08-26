@@ -19,7 +19,7 @@ cargo run --features "live-reload"
 2. Run the following cargo-watch commands in parallel in the `waved-core` directory:
 ```
 cargo watch -w src -x build -s 'touch .trigger-watch'
-cargo watch --no-gitignore -w .trigger-watch -s 'mv -f target/debug/libwaved_core.dylib ../target/debug/libwaved_core.dylib'
+cargo watch --no-gitignore -w .trigger-watch -s 'mv -f target/debug/libwaved_gui.dylib ../target/debug/libwaved_gui.dylib'
 ```
 
 Make sure to use the right extension for your platform (`.so` on Linux, `.dylib` on macOS and `.dll` on Windows) and to remove the `lib` prefix on Windows.

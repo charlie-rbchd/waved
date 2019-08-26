@@ -16,40 +16,40 @@
         },
         {
             "type": "shell",
-            "label": "Build (waved-core)",
+            "label": "Build (waved-gui)",
             "group": "build",
             "command": "cargo",
             "options": {
-                "cwd": "${workspaceFolder}/waved-core"
+                "cwd": "${workspaceFolder}/waved-gui"
             },
             "linux": {
                 "args": [
                     "build",
-                    "&&", "mv", "-f", "target/debug/libwaved_core.so", "../target/debug/libwaved_core.so"
+                    "&&", "mv", "-f", "target/debug/libwaved_gui.so", "../target/debug/libwaved_gui.so"
                 ]
             },
             "osx": {
                 "args": [
                     "build",
-                    "&&", "mv", "-f", "target/debug/libwaved_core.dylib", "../target/debug/libwaved_core.dylib",
-                    "&&", "install_name_tool", "-id", "${workspaceFolder}/target/debug/libwaved_core.dylib", "target/debug/libwaved_core.dylib"
+                    "&&", "mv", "-f", "target/debug/libwaved_gui.dylib", "../target/debug/libwaved_gui.dylib",
+                    "&&", "install_name_tool", "-id", "${workspaceFolder}/target/debug/libwaved_gui.dylib", "target/debug/libwaved_gui.dylib"
                 ]
             },
             "windows": {
                 "args": [
                     "build",
-                    "&&", "mv", "-f", "target/debug/waved_core.dll", "../target/debug/waved_core.dll"
+                    "&&", "mv", "-f", "target/debug/waved_gui.dll", "../target/debug/waved_gui.dll"
                 ]
             },
             "problemMatcher": [ "$rustc" ]
         },
         {
             "type": "shell",
-            "label": "Watch (waved-core)",
+            "label": "Watch (waved-gui)",
             "group": "build",
             "command": "cargo",
             "options": {
-                "cwd": "${workspaceFolder}/waved-core"
+                "cwd": "${workspaceFolder}/waved-gui"
             },
             "args": [
                 "watch",
@@ -62,18 +62,18 @@
         },
         {
             "type": "shell",
-            "label": "Reload (waved-core)",
+            "label": "Reload (waved-gui)",
             "group": "build",
             "command": "cargo",
             "options": {
-                "cwd": "${workspaceFolder}/waved-core"
+                "cwd": "${workspaceFolder}/waved-gui"
             },
             "linux": {
                 "args": [
                     "watch",
                     "--no-gitignore",
                     "-w", ".trigger-watch",
-                    "-s", "'mv -f target/debug/libwaved_core.so ../target/debug/libwaved_core.so'"
+                    "-s", "'mv -f target/debug/libwaved_gui.so ../target/debug/libwaved_gui.so'"
                 ]
             },
             "osx": {
@@ -81,7 +81,7 @@
                     "watch",
                     "--no-gitignore",
                     "-w", ".trigger-watch",
-                    "-s", "'mv -f target/debug/libwaved_core.dylib ../target/debug/libwaved_core.dylib && install_name_tool -id ${workspaceFolder}/target/debug/libwaved_core.dylib target/debug/libwaved_core.dylib'"
+                    "-s", "'mv -f target/debug/libwaved_gui.dylib ../target/debug/libwaved_gui.dylib && install_name_tool -id ${workspaceFolder}/target/debug/libwaved_gui.dylib target/debug/libwaved_gui.dylib'"
                 ]
             },
             "windows": {
@@ -89,7 +89,7 @@
                     "watch",
                     "--no-gitignore",
                     "-w", ".trigger-watch",
-                    "-s", "'mv -f target/debug/waved_core.dll ../target/debug/waved_core.dll'"
+                    "-s", "'mv -f target/debug/waved_gui.dll ../target/debug/waved_gui.dll'"
                 ]
             },
             "problemMatcher": [],
