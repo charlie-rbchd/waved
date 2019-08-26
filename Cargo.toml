@@ -20,7 +20,7 @@ gl = "0.10.0"
 glfw = "0.26.0"
 nfd = "0.0.4"
 clap = "2.32.0"
-portaudio = "0.7.0"
+cpal = "0.10.0"
 
 [dependencies.waved-core]
 path = "waved-core"
