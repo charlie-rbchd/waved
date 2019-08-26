@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
 use std::thread_local;
 
-use waved_core::State;
+use waved_core::state::{AudioFile, State};
+use waved_core::log::Logger;
+use waved_sndfile::samples_from_file;
 
 use crate::cli::CommandLineArgs;
 
@@ -85,6 +87,7 @@ pub struct App {
     window: RefCell<Window>,
     events: Receiver<(f64, WindowEvent)>,
     state: RefCell<State>,
+    logger: RefCell<Logger>,
 }
 
 thread_local! {
@@ -100,6 +103,8 @@ impl App {
         let state = Default::default();
         let gui = Library::new(dylib_load_path(GUILIB_FILENAME))
             .expect("Failed to load core library.");
+
+        let logger = Logger::new();
 
         let mut glfw = glfw::init(FAIL_ON_ERRORS).unwrap();
 
@@ -127,6 +132,7 @@ impl App {
             window: RefCell::new(window),
             events,
             state: RefCell::new(state),
+            logger: RefCell::new(logger),
         }
     }
 
@@ -225,7 +231,10 @@ impl App {
         }
     }
 
-    fn load_file<P: AsRef<Path>>(&self, _filename: P) {
-        // TODO: To be implemented, read file and dump samples in the state
+    fn load_file<P: AsRef<Path> + Into<PathBuf>>(&self, filename: P) {
+        match samples_from_file(&filename) {
+            Ok(samples) => self.state.borrow_mut().current_file = Some(AudioFile { filename: filename.into(), samples }),
+            Err(err) => self.logger.borrow_mut().log(err),
+        }
     }
 }

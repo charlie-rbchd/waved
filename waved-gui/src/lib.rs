@@ -3,7 +3,7 @@ use std::thread_local;
 mod renderer;
 pub use renderer::Renderer;
 
-use waved_core::State;
+use waved_core::state::State;
 
 thread_local! {
     #[allow(non_upper_case_globals)]

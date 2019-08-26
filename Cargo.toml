@@ -24,3 +24,6 @@ cpal = "0.10.0"
 
 [dependencies.waved-core]
 path = "waved-core"
+
+[dependencies.waved-sndfile]
+path = "waved-sndfile"

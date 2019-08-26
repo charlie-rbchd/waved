@@ -2,7 +2,6 @@
 
 use std::path::PathBuf;
 
-#[derive(Default)]
 pub struct AudioFile {
     pub filename: PathBuf,
     pub samples: Vec<i32>,

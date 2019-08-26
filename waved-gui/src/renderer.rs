@@ -4,7 +4,7 @@ use nanovg::{Context, ContextBuilder, Font};
 
 use std::ops::Deref;
 
-use waved_core::State;
+use waved_core::state::State;
 
 pub struct Fonts<'f> {
     regular: Font<'f>,
@@ -48,6 +48,7 @@ impl<'f> Renderer<'f> {
     pub fn render(&self, _state: &State, viewport: (f32, f32), scale: f32) {
         self.context.frame(viewport, scale, |_frame| {
             // TODO: Render waveform from state
+            // TODO: Render messages from logger
         });
     }
 }
