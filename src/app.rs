@@ -233,8 +233,13 @@ impl App {
 
     fn load_file<P: AsRef<Path> + Into<PathBuf>>(&self, filename: P) {
         match samples_from_file(&filename) {
-            Ok(samples) => self.state.borrow_mut().current_file = Some(AudioFile { filename: filename.into(), samples }),
-            Err(err) => self.logger.borrow_mut().log(err),
+            Ok(samples) => {
+                self.state.borrow_mut().current_file = Some(AudioFile {
+                    filename: filename.into(),
+                    samples
+                })
+            },
+            Err(err) => { dbg!(err); },
         }
     }
 }

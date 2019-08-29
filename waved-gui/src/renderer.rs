@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use nanovg::{Context, ContextBuilder, Font};
+use nanovg::{Color, Context, ContextBuilder, Font, StrokeOptions};
 
 use std::ops::Deref;
 
@@ -45,10 +45,51 @@ impl<'f> Renderer<'f> {
         Self { context, fonts }
     }
 
-    pub fn render(&self, _state: &State, viewport: (f32, f32), scale: f32) {
-        self.context.frame(viewport, scale, |_frame| {
-            // TODO: Render waveform from state
-            // TODO: Render messages from logger
+    pub fn render(&self, state: &State, viewport: (f32, f32), scale: f32) {
+        self.context.frame(viewport, scale, |frame| {
+            let width = viewport.0;
+            let height = viewport.1;
+
+            if let Some(file) = &state.current_file {
+                let num_samples = file.samples.len();
+
+                let mut current_x = 0;
+                let mut current_avg = 0.0;
+                let mut num_samples_acc = 0;
+
+                // TODO: Multi-channel rendering
+                for (i, s) in file.samples.iter().enumerate() {
+                    let x = (i as f32 / num_samples as f32 * width).round() as i32;
+                    if current_x == x {
+                        current_avg += s.abs();
+                        num_samples_acc += 1;
+                    } else {
+                        current_avg /= num_samples_acc as f32;
+
+                        let line_height = height * current_avg;
+                        let line_start = (height - line_height) * 0.5;
+                        let line_end = line_start + line_height;
+
+                        frame.path(
+                            |path| {
+                                path.move_to((x as f32, line_start));
+                                path.line_to((x as f32, line_end));
+                                path.stroke(
+                                    Color::from_rgba(255, 255, 255, 255),
+                                    StrokeOptions {
+                                        width: 1.0,
+                                        ..Default::default()
+                                    }
+                                );
+                            },
+                            Default::default(),
+                        );
+                        current_x = x;
+                        current_avg = 0.0;
+                        num_samples_acc = 0;
+                    }
+                }
+            }
         });
     }
 }
