@@ -4,7 +4,7 @@ pub use hound::{Error, Sample, SampleFormat};
 use std::path::Path;
 
 pub fn samples_from_file<P: AsRef<Path>>(filename: P) -> Result<Vec<f32>, Error> {
-    // TODO: Seinterleave the channels instead of filtering them out
+    // TODO: Downmix the channels instead of filtering them out
     let mut reader = WavReader::open(filename)?;
     let spec = reader.spec();
     let samples = match spec.sample_format {

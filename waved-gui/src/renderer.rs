@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use nanovg::{Color, Context, ContextBuilder, Font, StrokeOptions};
+use nanovg::{Color, Context, ContextBuilder, Font, Frame, StrokeOptions};
 
 use std::ops::Deref;
 
@@ -16,7 +16,19 @@ pub struct Renderer<'f> {
     fonts: Fonts<'f>,
 }
 
-enum DisplayError {}
+fn draw_line(frame: &Frame, from: (f32, f32), to: (f32, f32)) {
+    frame.path(|path| {
+        path.move_to(from);
+        path.line_to(to);
+        path.stroke(
+            Color::from_rgba(255, 255, 255, 255),
+            StrokeOptions {
+                width: 1.0,
+                ..Default::default()
+            }
+        );
+    }, Default::default());
+}
 
 impl<'f> Renderer<'f> {
     pub fn new() -> Self {
@@ -51,44 +63,40 @@ impl<'f> Renderer<'f> {
             let height = viewport.1;
 
             if let Some(file) = &state.current_file {
-                let num_samples = file.samples.len();
+                draw_line(&frame, (0.0, height * 0.5), (width, height * 0.5));
 
                 let mut current_x = 0;
-                let mut current_avg = 0.0;
+                let mut current_rms = 0.0;
                 let mut num_samples_acc = 0;
 
-                // TODO: Multi-channel rendering
+                // TODO: Compute RMS for negative and positive samples separately
+                // TODO: Cleanup this loop
+                let num_samples = file.samples.len();
                 for (i, s) in file.samples.iter().enumerate() {
                     let x = (i as f32 / num_samples as f32 * width).round() as i32;
                     if current_x == x {
-                        current_avg += s.abs();
+                        current_rms += s * s;
                         num_samples_acc += 1;
                     } else {
-                        current_avg /= num_samples_acc as f32;
+                        current_rms = (current_rms / num_samples_acc as f32).sqrt();
 
-                        let line_height = height * current_avg;
+                        let line_height = height * current_rms;
                         let line_start = (height - line_height) * 0.5;
                         let line_end = line_start + line_height;
+                        draw_line(&frame, (x as f32, line_start), (x as f32, line_end));
 
-                        frame.path(
-                            |path| {
-                                path.move_to((x as f32, line_start));
-                                path.line_to((x as f32, line_end));
-                                path.stroke(
-                                    Color::from_rgba(255, 255, 255, 255),
-                                    StrokeOptions {
-                                        width: 1.0,
-                                        ..Default::default()
-                                    }
-                                );
-                            },
-                            Default::default(),
-                        );
                         current_x = x;
-                        current_avg = 0.0;
+                        current_rms = 0.0;
                         num_samples_acc = 0;
                     }
                 }
+
+                current_rms = (current_rms / num_samples_acc as f32).sqrt();
+
+                let line_height = height * current_rms;
+                let line_start = (height - line_height) * 0.5;
+                let line_end = line_start + line_height;
+                draw_line(&frame, (width, line_start), (width, line_end));
             }
         });
     }
