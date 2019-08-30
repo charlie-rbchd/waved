@@ -30,6 +30,47 @@ fn draw_line(frame: &Frame, from: (f32, f32), to: (f32, f32)) {
     }, Default::default());
 }
 
+fn draw_waveform(frame: &Frame, pos: (f32, f32), size: (f32, f32), samples: &Vec<f32>) {
+    let top = pos.1;
+    let left = pos.0;
+    let width = size.0;
+    let height = size.1;
+    let half_height  = height * 0.5;
+
+    draw_line(frame, (left, top + half_height), (left + width, top + half_height));
+
+    let mut current_x = 0;
+    let mut current_rms = 0.0;
+    let mut num_samples_acc = 0;
+
+    // TODO: Compute RMS for negative and positive samples separately
+    // TODO: Cleanup this loop
+    let num_samples = samples.len();
+    for (i, s) in samples.iter().enumerate() {
+        let x = (i as f32 / num_samples as f32 * width).round() as i32;
+        if current_x == x {
+            current_rms += s * s;
+            num_samples_acc += 1;
+        } else {
+            current_rms = (current_rms / num_samples_acc as f32).sqrt();
+            let line_height = height * current_rms;
+            let line_start_y = top + (height - line_height) * 0.5;
+            let line_end_y = line_start_y + line_height;
+            draw_line(frame, (left + x as f32, line_start_y), (left + x as f32, line_end_y));
+
+            current_x = x;
+            current_rms = 0.0;
+            num_samples_acc = 0;
+        }
+    }
+
+    current_rms = (current_rms / num_samples_acc as f32).sqrt();
+    let line_height = height * current_rms;
+    let line_start_y = top + (height - line_height) * 0.5;
+    let line_end_y = line_start_y + line_height;
+    draw_line(frame, (left + width, line_start_y), (left + width, line_end_y));
+}
+
 impl<'f> Renderer<'f> {
     pub fn new() -> Self {
         // Has to be heap-allocated since we take it's address when creating fonts.
@@ -59,44 +100,8 @@ impl<'f> Renderer<'f> {
 
     pub fn render(&self, state: &State, viewport: (f32, f32), scale: f32) {
         self.context.frame(viewport, scale, |frame| {
-            let width = viewport.0;
-            let height = viewport.1;
-
             if let Some(file) = &state.current_file {
-                draw_line(&frame, (0.0, height * 0.5), (width, height * 0.5));
-
-                let mut current_x = 0;
-                let mut current_rms = 0.0;
-                let mut num_samples_acc = 0;
-
-                // TODO: Compute RMS for negative and positive samples separately
-                // TODO: Cleanup this loop
-                let num_samples = file.samples.len();
-                for (i, s) in file.samples.iter().enumerate() {
-                    let x = (i as f32 / num_samples as f32 * width).round() as i32;
-                    if current_x == x {
-                        current_rms += s * s;
-                        num_samples_acc += 1;
-                    } else {
-                        current_rms = (current_rms / num_samples_acc as f32).sqrt();
-
-                        let line_height = height * current_rms;
-                        let line_start = (height - line_height) * 0.5;
-                        let line_end = line_start + line_height;
-                        draw_line(&frame, (x as f32, line_start), (x as f32, line_end));
-
-                        current_x = x;
-                        current_rms = 0.0;
-                        num_samples_acc = 0;
-                    }
-                }
-
-                current_rms = (current_rms / num_samples_acc as f32).sqrt();
-
-                let line_height = height * current_rms;
-                let line_start = (height - line_height) * 0.5;
-                let line_end = line_start + line_height;
-                draw_line(&frame, (width, line_start), (width, line_end));
+                draw_waveform(&frame, (0.0, 0.0), viewport, &file.samples);
             }
         });
     }
