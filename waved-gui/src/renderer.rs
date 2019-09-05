@@ -57,11 +57,8 @@ fn draw_waveform(frame: &Frame, pos: (f32, f32), size: (f32, f32), samples: &Vec
             if *s < 0.0 {
                 sum_of_squares.0 += s * s;
                 num_samples_acc.0 += 1;
-            } else if *s > 0.0 {
-                sum_of_squares.1 += s * s;
-                num_samples_acc.1 += 1;
             } else {
-                num_samples_acc.0 += 1;
+                sum_of_squares.1 += s * s;
                 num_samples_acc.1 += 1;
             }
         } else {
