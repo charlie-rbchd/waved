@@ -109,7 +109,10 @@ impl<'f> Renderer<'f> {
         self.context.frame(viewport, scale, |frame| {
             if let Some(file) = &state.current_file {
                 // TODO: Implement zoom and scroll
-                draw_waveform(&frame, (0.0, 0.0), viewport, &file.samples);
+                let channel_height = viewport.1 / file.samples.len() as f32;
+                for i in 0..file.samples.len() {
+                    draw_waveform(&frame, (0.0, i as f32 * channel_height), (viewport.0, channel_height), &file.samples[i]);
+                }
             }
         });
     }

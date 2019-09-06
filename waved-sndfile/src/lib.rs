@@ -3,11 +3,10 @@ pub use hound::{Error, Sample, SampleFormat};
 
 use std::path::Path;
 
-pub fn samples_from_file<P: AsRef<Path>>(filename: P) -> Result<Vec<f32>, Error> {
-    // TODO: Downmix the channels instead of filtering them out (or deinterleave them)
+pub fn samples_from_file<P: AsRef<Path>>(filename: P) -> Result<Vec<Vec<f32>>, Error> {
     let mut reader = WavReader::open(filename)?;
     let spec = reader.spec();
-    let samples = match spec.sample_format {
+    let samples: Vec<_> = match spec.sample_format {
         SampleFormat::Float => {
             reader.samples::<f32>()
                 .enumerate()
@@ -33,5 +32,5 @@ pub fn samples_from_file<P: AsRef<Path>>(filename: P) -> Result<Vec<f32>, Error>
                 .collect()
         },
     };
-    Ok(samples)
+    Ok(vec![samples])
 }
