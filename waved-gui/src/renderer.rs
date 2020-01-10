@@ -30,7 +30,7 @@ fn draw_line(frame: &Frame, from: (f32, f32), to: (f32, f32)) {
     }, Default::default());
 }
 
-fn draw_waveform(frame: &Frame, pos: (f32, f32), size: (f32, f32), samples: &Vec<f32>) {
+fn draw_waveform(frame: &Frame, pos: (f32, f32), size: (f32, f32), samples: &[f32]) {
     let width = size.0;
     let height = size.1;
     let half_height  = height * 0.5;
@@ -109,9 +109,17 @@ impl<'f> Renderer<'f> {
         self.context.frame(viewport, scale, |frame| {
             if let Some(file) = &state.current_file {
                 // TODO: Implement zoom and scroll
-                let channel_height = viewport.1 / file.samples.len() as f32;
-                for i in 0..file.samples.len() {
-                    draw_waveform(&frame, (0.0, i as f32 * channel_height), (viewport.0, channel_height), &file.samples[i]);
+                let channel_height = viewport.1 / file.num_channels as f32;
+                for i in 0..file.num_channels as usize {
+                    let samples_per_channel = file.samples.len() / file.num_channels as usize;
+                    let channel_slice_start = samples_per_channel * i;
+                    let channel_slice_end = samples_per_channel * (i + 1);
+                    draw_waveform(
+                        &frame,
+                        (0.0, i as f32 * channel_height),
+                        (viewport.0, channel_height),
+                        &file.samples[channel_slice_start..channel_slice_end]
+                    );
                 }
             }
         });

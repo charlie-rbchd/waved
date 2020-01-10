@@ -4,7 +4,8 @@ use std::path::PathBuf;
 
 pub struct AudioFile {
     pub filename: PathBuf,
-    pub samples: Vec<Vec<f32>>,
+    pub samples: Vec<f32>,
+    pub num_channels: u16,
 }
 
 #[derive(Default)]

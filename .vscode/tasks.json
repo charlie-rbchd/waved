@@ -32,7 +32,7 @@
                 "args": [
                     "build",
                     "&&", "mv", "-f", "target/debug/libwaved_gui.dylib", "../target/debug/libwaved_gui.dylib",
-                    "&&", "install_name_tool", "-id", "${workspaceFolder}/target/debug/libwaved_gui.dylib", "target/debug/libwaved_gui.dylib"
+                    "&&", "install_name_tool", "-id", "${workspaceFolder}/target/debug/libwaved_gui.dylib", "../target/debug/libwaved_gui.dylib"
                 ]
             },
             "windows": {
@@ -81,7 +81,7 @@
                     "watch",
                     "--no-gitignore",
                     "-w", ".trigger-watch",
-                    "-s", "'mv -f target/debug/libwaved_gui.dylib ../target/debug/libwaved_gui.dylib && install_name_tool -id ${workspaceFolder}/target/debug/libwaved_gui.dylib target/debug/libwaved_gui.dylib'"
+                    "-s", "'mv -f target/debug/libwaved_gui.dylib ../target/debug/libwaved_gui.dylib && install_name_tool -id ${workspaceFolder}/target/debug/libwaved_gui.dylib ../target/debug/libwaved_gui.dylib'"
                 ]
             },
             "windows": {

@@ -216,7 +216,7 @@ impl App {
                     nfd::Response::Cancel => {},
                 }
             },
-            WindowEvent::Key(Key::S, _, Action::Press, _) => {
+            WindowEvent::Key(Key::Space, _, Action::Press, _) => {
                 // TODO: Create a single audio thread and move the playback code to another file.
                 // thread::spawn(move || {
                 //     run_portaudio_test().expect("PortAudio Test: failed to run");
@@ -233,10 +233,11 @@ impl App {
 
     fn load_file<P: AsRef<Path> + Into<PathBuf>>(&self, filename: P) {
         match samples_from_file(&filename) {
-            Ok(samples) => {
+            Ok((samples, num_channels)) => {
                 self.state.borrow_mut().current_file = Some(AudioFile {
                     filename: filename.into(),
-                    samples
+                    samples,
+                    num_channels
                 })
             },
             Err(err) => { dbg!(err); },
