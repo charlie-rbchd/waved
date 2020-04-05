@@ -50,6 +50,9 @@ fn draw_waveform(frame: &Frame, pos: (f32, f32), size: (f32, f32), samples: &[f3
     let mut sum_of_squares = (0.0, 0.0);
     let mut num_samples_acc = (0, 0);
 
+    // TODO: Use peak instead of RMS for waveform?
+    // TODO: Display dbFS scale
+
     let num_samples = samples.len();
     for (i, s) in samples.iter().enumerate() {
         let x = (i as f32 / num_samples as f32 * width).round() as i32;

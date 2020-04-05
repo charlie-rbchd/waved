@@ -3,13 +3,13 @@ pub use hound::{Error, Sample, SampleFormat};
 
 use std::path::Path;
 
-mod interleave;
-use interleave::SliceInterleave;
+mod algorithm;
+use algorithm::deinterleave;
 
 pub fn samples_from_file<P: AsRef<Path>>(filename: P) -> Result<(Vec<f32>, u16), Error> {
     let mut reader = WavReader::open(filename)?;
     let spec = reader.spec();
-    let mut samples: Vec<_> = match spec.sample_format {
+    let samples: Vec<_> = match spec.sample_format {
         SampleFormat::Float => {
             reader.samples::<f32>()
                 .map(|s| s.unwrap())
@@ -31,6 +31,5 @@ pub fn samples_from_file<P: AsRef<Path>>(filename: P) -> Result<(Vec<f32>, u16),
                 .collect()
         },
     };
-    samples.deinterleave();
-    Ok((samples, spec.channels))
+    Ok((deinterleave(&samples, spec.channels as usize), spec.channels))
 }
