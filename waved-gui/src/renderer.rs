@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use nanovg::{Color, Context, ContextBuilder, Font, Frame, StrokeOptions};
 
 use std::ops::Deref;
