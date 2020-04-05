@@ -50,9 +50,6 @@ fn draw_waveform(frame: &Frame, pos: (f32, f32), size: (f32, f32), samples: &[f3
     let mut sum_of_squares = (0.0, 0.0);
     let mut num_samples_acc = (0, 0);
 
-    // TODO: Use peak instead of RMS for waveform?
-    // TODO: Display dbFS scale
-
     let num_samples = samples.len();
     for (i, s) in samples.iter().enumerate() {
         let x = (i as f32 / num_samples as f32 * width).round() as i32;
@@ -79,6 +76,22 @@ fn draw_waveform(frame: &Frame, pos: (f32, f32), size: (f32, f32), samples: &[f3
         (sum_of_squares.0 / num_samples_acc.0 as f32).sqrt(),
         (sum_of_squares.1 / num_samples_acc.1 as f32).sqrt()
     ));
+}
+
+fn draw_x_scale(frame: &Frame, pos: (f32, f32), size: (f32, f32)) {
+    frame.path(|path| {
+        path.rect(pos, size);
+        path.fill(Color::from_rgba(255, 255, 255, 255), Default::default());
+    }, Default::default());
+}
+
+fn draw_y_scale(frame: &Frame, pos: (f32, f32), size: (f32, f32)) {
+    // TODO: Channel names
+    // TODO: dbFS vs raw amplitude
+    frame.path(|path| {
+        path.rect(pos, size);
+        path.fill(Color::from_rgba(255, 255, 255, 255), Default::default());
+    }, Default::default());
 }
 
 impl<'f> Renderer<'f> {
@@ -112,15 +125,29 @@ impl<'f> Renderer<'f> {
         self.context.frame(viewport, scale, |frame| {
             if let Some(file) = &state.current_file {
                 // TODO: Implement zoom and scroll
-                let channel_height = viewport.1 / file.num_channels as f32;
+                const X_SCALE_HEIGHT: f32 = 10.0;
+                draw_x_scale(&frame, (0.0, 0.0), (viewport.0, X_SCALE_HEIGHT));
+
+                let channel_height = (viewport.1 - X_SCALE_HEIGHT) / file.num_channels as f32;
+
                 for i in 0..file.num_channels as usize {
                     let samples_per_channel = file.samples.len() / file.num_channels as usize;
                     let channel_slice_start = samples_per_channel * i;
                     let channel_slice_end = samples_per_channel * (i + 1);
+
+                    const Y_SCALE_WIDTH: f32 = 50.0;
+                    draw_y_scale(
+                        &frame,
+                        (0.0, X_SCALE_HEIGHT + i as f32 * channel_height),
+                        (Y_SCALE_WIDTH, channel_height)
+                    );
+
+                    let channel_width = viewport.0 - Y_SCALE_WIDTH;
+
                     draw_waveform(
                         &frame,
-                        (0.0, i as f32 * channel_height),
-                        (viewport.0, channel_height),
+                        (Y_SCALE_WIDTH, X_SCALE_HEIGHT + i as f32 * channel_height),
+                        (channel_width, channel_height),
                         &file.samples[channel_slice_start..channel_slice_end]
                     );
                 }
