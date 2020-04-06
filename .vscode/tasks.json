@@ -58,7 +58,10 @@
                 "-s", "'touch .trigger-watch'"
             ],
             "problemMatcher": [ "$rustc" ],
-            "isBackground": true
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
         },
         {
             "type": "shell",
@@ -93,7 +96,10 @@
                 ]
             },
             "problemMatcher": [],
-            "isBackground": true
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
         },
         {
             "type": "shell",
