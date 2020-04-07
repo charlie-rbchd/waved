@@ -1,10 +1,13 @@
 use glfw::{Action, Context, Glfw, Key, OpenGlProfileHint, SwapInterval, Window, WindowEvent, WindowHint, WindowMode, FAIL_ON_ERRORS};
 use libloading::Library;
+use cpal::{self, StreamData, UnknownTypeOutputBuffer};
+use cpal::traits::{HostTrait, DeviceTrait, EventLoopTrait};
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{channel, Sender, Receiver};
 use std::thread_local;
+use std::thread;
 
 use waved_core::state::{AudioFile, State};
 use waved_core::log::Logger;
@@ -80,6 +83,54 @@ extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
     app.with(|a| a.render_gui());
 }
 
+fn create_audio_thread() -> Sender<f32> {
+    let (tx, _rx) = channel();
+    thread::spawn(move || {
+        let host = cpal::default_host();
+        let event_loop = host.event_loop();
+        let device = host.default_output_device().expect("No output device available.");
+
+        let mut supported_formats_range = device.supported_output_formats()
+            .expect("Error while querying formats.");
+        let format = supported_formats_range.next()
+            .expect("No supported format?!")
+            .with_max_sample_rate();
+        
+        let stream_id = event_loop.build_output_stream(&device, &format).unwrap();
+        event_loop.play_stream(stream_id).expect("Failed to play_stream.");
+
+        event_loop.run(move |stream_id, stream_result| {
+            let stream_data = match stream_result {
+                Ok(data) => data,
+                Err(err) => {
+                    eprintln!("an error occurred on stream {:?}: {}", stream_id, err);
+                    return;
+                },
+            };
+        
+            match stream_data {
+                StreamData::Output { buffer: UnknownTypeOutputBuffer::U16(mut buffer) } => {
+                    for elem in buffer.iter_mut() {
+                        *elem = u16::max_value() / 2;
+                    }
+                },
+                StreamData::Output { buffer: UnknownTypeOutputBuffer::I16(mut buffer) } => {
+                    for elem in buffer.iter_mut() {
+                        *elem = 0;
+                    }
+                },
+                StreamData::Output { buffer: UnknownTypeOutputBuffer::F32(mut buffer) } => {
+                    for elem in buffer.iter_mut() {
+                        *elem = 0.0;
+                    }
+                },
+                _ => (),
+            }
+        });
+    });
+    tx
+}
+
 #[allow(dead_code)]
 pub struct App {
     gui: RefCell<Library>,
@@ -88,6 +139,7 @@ pub struct App {
     events: Receiver<(f64, WindowEvent)>,
     state: RefCell<State>,
     logger: RefCell<Logger>,
+    playback_stream: Sender<f32>,
 }
 
 thread_local! {
@@ -126,6 +178,8 @@ impl App {
         gl::load_with(|symbol| window.get_proc_address(symbol));
         glfw.set_swap_interval(SwapInterval::Sync(1)); // Enable vsync
 
+        let playback_stream = create_audio_thread();
+
         Self {
             gui: RefCell::new(gui),
             glfw: RefCell::new(glfw),
@@ -133,6 +187,7 @@ impl App {
             events,
             state: RefCell::new(state),
             logger: RefCell::new(logger),
+            playback_stream,
         }
     }
 
@@ -217,10 +272,6 @@ impl App {
                 }
             },
             WindowEvent::Key(Key::Space, _, Action::Press, _) => {
-                // TODO: Create a single audio thread and move the playback code to another file.
-                // thread::spawn(move || {
-                //     run_portaudio_test().expect("PortAudio Test: failed to run");
-                // });
             },
             WindowEvent::FileDrop(files) => {
                 if files.len() > 0 {
