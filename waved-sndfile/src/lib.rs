@@ -6,7 +6,7 @@ use std::path::Path;
 mod algorithm;
 use algorithm::deinterleave;
 
-pub fn samples_from_file<P: AsRef<Path>>(filename: P) -> Result<(Vec<f32>, u16), Error> {
+pub fn samples_from_file<P: AsRef<Path>>(filename: P) -> Result<(Vec<f32>, u16, u32), Error> {
     let mut reader = WavReader::open(filename)?;
     let spec = reader.spec();
     let samples: Vec<_> = match spec.sample_format {
@@ -31,5 +31,5 @@ pub fn samples_from_file<P: AsRef<Path>>(filename: P) -> Result<(Vec<f32>, u16),
                 .collect()
         },
     };
-    Ok((deinterleave(&samples, spec.channels as usize), spec.channels))
+    Ok((deinterleave(&samples, spec.channels as usize), spec.channels, spec.sample_rate))
 }

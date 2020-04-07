@@ -15,12 +15,13 @@ live-reload = []
 default = []
 
 [dependencies]
-libloading = "0.5"
-gl = "0.10.0"
-glfw = "0.26.0"
+libloading = "0.6"
+gl = "0.14.0"
+glfw = "0.37.0"
 nfd = "0.0.4"
-clap = "2.32.0"
-cpal = "0.10.0"
+clap = "2.33.0"
+cpal = "0.11.0"
+ringbuf = "0.2.1"
 
 [dependencies.waved-core]
 path = "waved-core"

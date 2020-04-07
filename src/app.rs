@@ -2,10 +2,11 @@ use glfw::{Action, Context, Glfw, Key, OpenGlProfileHint, SwapInterval, Window, 
 use libloading::Library;
 use cpal::{self, StreamData, UnknownTypeOutputBuffer};
 use cpal::traits::{HostTrait, DeviceTrait, EventLoopTrait};
+use ringbuf::{self, RingBuffer};
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::mpsc::Receiver;
 use std::thread_local;
 use std::thread;
 
@@ -83,11 +84,19 @@ extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
     app.with(|a| a.render_gui());
 }
 
-fn create_audio_thread() -> Sender<f32> {
-    let (tx, _rx) = channel();
-    thread::spawn(move || {
+#[allow(dead_code)]
+struct AudioOutputDevice {
+    stream: ringbuf::Producer<f32>,
+    channels: u16,
+    sample_rate: u32,
+}
+
+impl AudioOutputDevice {
+    fn new(buffer_size: usize) -> AudioOutputDevice {
+        let ring = RingBuffer::new(buffer_size);
+        let (producer, _consumer) = ring.split();
+
         let host = cpal::default_host();
-        let event_loop = host.event_loop();
         let device = host.default_output_device().expect("No output device available.");
 
         let mut supported_formats_range = device.supported_output_formats()
@@ -95,40 +104,48 @@ fn create_audio_thread() -> Sender<f32> {
         let format = supported_formats_range.next()
             .expect("No supported format?!")
             .with_max_sample_rate();
-        
-        let stream_id = event_loop.build_output_stream(&device, &format).unwrap();
-        event_loop.play_stream(stream_id).expect("Failed to play_stream.");
+        let channels = format.channels;
+        let sample_rate = format.sample_rate.0;
 
-        event_loop.run(move |stream_id, stream_result| {
-            let stream_data = match stream_result {
-                Ok(data) => data,
-                Err(err) => {
-                    eprintln!("an error occurred on stream {:?}: {}", stream_id, err);
-                    return;
-                },
-            };
-        
-            match stream_data {
-                StreamData::Output { buffer: UnknownTypeOutputBuffer::U16(mut buffer) } => {
-                    for elem in buffer.iter_mut() {
-                        *elem = u16::max_value() / 2;
-                    }
-                },
-                StreamData::Output { buffer: UnknownTypeOutputBuffer::I16(mut buffer) } => {
-                    for elem in buffer.iter_mut() {
-                        *elem = 0;
-                    }
-                },
-                StreamData::Output { buffer: UnknownTypeOutputBuffer::F32(mut buffer) } => {
-                    for elem in buffer.iter_mut() {
-                        *elem = 0.0;
-                    }
-                },
-                _ => (),
-            }
+        thread::spawn(move || {
+            let event_loop = host.event_loop();
+            let stream_id = event_loop.build_output_stream(&device, &format).unwrap();
+            event_loop.play_stream(stream_id).expect("Failed to play_stream.");
+
+            event_loop.run(move |stream_id, stream_result| {
+                let stream_data = match stream_result {
+                    Ok(data) => data,
+                    Err(err) => {
+                        eprintln!("An error occurred on stream {:?}: {}", stream_id, err);
+                        return;
+                    },
+                };
+            
+                // TODO: Output the samples in the ringbuffer
+                // TODO: Can we only support f32 output buffers?
+                match stream_data {
+                    StreamData::Output { buffer: UnknownTypeOutputBuffer::U16(mut buffer) } => {
+                        for elem in buffer.iter_mut() {
+                            *elem = u16::max_value() / 2;
+                        }
+                    },
+                    StreamData::Output { buffer: UnknownTypeOutputBuffer::I16(mut buffer) } => {
+                        for elem in buffer.iter_mut() {
+                            *elem = 0;
+                        }
+                    },
+                    StreamData::Output { buffer: UnknownTypeOutputBuffer::F32(mut buffer) } => {
+                        for elem in buffer.iter_mut() {
+                            *elem = 0.0;
+                        }
+                    },
+                    _ => (),
+                }
+            });
         });
-    });
-    tx
+
+        AudioOutputDevice { stream: producer, channels, sample_rate }
+    }
 }
 
 #[allow(dead_code)]
@@ -139,7 +156,7 @@ pub struct App {
     events: Receiver<(f64, WindowEvent)>,
     state: RefCell<State>,
     logger: RefCell<Logger>,
-    playback_stream: Sender<f32>,
+    audio_out: AudioOutputDevice,
 }
 
 thread_local! {
@@ -178,7 +195,8 @@ impl App {
         gl::load_with(|symbol| window.get_proc_address(symbol));
         glfw.set_swap_interval(SwapInterval::Sync(1)); // Enable vsync
 
-        let playback_stream = create_audio_thread();
+        const BUFFER_SIZE: usize = 512;
+        let audio_out = AudioOutputDevice::new(BUFFER_SIZE);
 
         Self {
             gui: RefCell::new(gui),
@@ -187,7 +205,7 @@ impl App {
             events,
             state: RefCell::new(state),
             logger: RefCell::new(logger),
-            playback_stream,
+            audio_out,
         }
     }
 
@@ -284,11 +302,12 @@ impl App {
 
     fn load_file<P: AsRef<Path> + Into<PathBuf>>(&self, filename: P) {
         match samples_from_file(&filename) {
-            Ok((samples, num_channels)) => {
+            Ok((samples, channels, sample_rate)) => {
                 self.state.borrow_mut().current_file = Some(AudioFile {
                     filename: filename.into(),
                     samples,
-                    num_channels
+                    channels,
+                    sample_rate
                 })
             },
             Err(err) => { dbg!(err); },
