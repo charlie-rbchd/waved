@@ -6,3 +6,5 @@ edition = "2018"
 
 [dependencies]
 hound = "3.4.0"
+cpal = "0.11.0"
+ringbuf = "0.2.1"
