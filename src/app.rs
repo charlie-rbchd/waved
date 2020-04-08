@@ -1,6 +1,6 @@
 use glfw::{Action, Context, Glfw, Key, OpenGlProfileHint, SwapInterval, Window, WindowEvent, WindowHint, WindowMode, FAIL_ON_ERRORS};
 use libloading::Library;
-use cpal::{self, StreamData, UnknownTypeOutputBuffer};
+use cpal::{self, StreamData, UnknownTypeOutputBuffer, SampleFormat};
 use cpal::traits::{HostTrait, DeviceTrait, EventLoopTrait};
 use ringbuf::{self, RingBuffer};
 
@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
 use std::thread_local;
 use std::thread;
+use std::time::Duration;
 
 use waved_core::state::{AudioFile, State};
 use waved_core::log::Logger;
@@ -84,68 +85,71 @@ extern "C" fn refresh_callback(_window: *mut glfw::ffi::GLFWwindow) {
     app.with(|a| a.render_gui());
 }
 
-#[allow(dead_code)]
-struct AudioOutputDevice {
-    stream: ringbuf::Producer<f32>,
-    channels: u16,
-    sample_rate: u32,
-}
+fn create_audio_thread(buffer_size: usize) {
+    let host = cpal::default_host();
+    let device = host.default_output_device().expect("No output device available.");
 
-impl AudioOutputDevice {
-    fn new(buffer_size: usize) -> AudioOutputDevice {
-        let ring = RingBuffer::new(buffer_size);
-        let (producer, _consumer) = ring.split();
+    // TODO: We may need to support other sample formats depending on what
+    // the target systems provide.
+    let mut supported_formats_range = device.supported_output_formats()
+        .expect("Error while querying formats.");
+    let format = supported_formats_range.find(|f| f.data_type == SampleFormat::F32)
+        .expect("No supported device format.")
+        .with_max_sample_rate();
+    let channels = format.channels;
+    let sample_rate = format.sample_rate.0;
 
-        let host = cpal::default_host();
-        let device = host.default_output_device().expect("No output device available.");
+    // TODO: Can we know the size of the underlying device buffer?
+    let ring = RingBuffer::<f32>::new(buffer_size);
+    let (mut producer, mut consumer) = ring.split();
 
-        let mut supported_formats_range = device.supported_output_formats()
-            .expect("Error while querying formats.");
-        let format = supported_formats_range.next()
-            .expect("No supported format?!")
-            .with_max_sample_rate();
-        let channels = format.channels;
-        let sample_rate = format.sample_rate.0;
+    // Spawn audio mixing thread.
+    thread::spawn(move || {
+        let mut t = 0.0;
+        let t_inc = 1.0 / sample_rate as f32;
+        let t_sleep = buffer_size as f32 / sample_rate as f32 * 0.5;
 
-        thread::spawn(move || {
-            let event_loop = host.event_loop();
-            let stream_id = event_loop.build_output_stream(&device, &format).unwrap();
-            event_loop.play_stream(stream_id).expect("Failed to play_stream.");
+        let f = 1000.0;
+        let w = 2.0 * std::f32::consts::PI * f;
 
-            event_loop.run(move |stream_id, stream_result| {
-                let stream_data = match stream_result {
-                    Ok(data) => data,
-                    Err(err) => {
-                        eprintln!("An error occurred on stream {:?}: {}", stream_id, err);
-                        return;
-                    },
-                };
-            
-                // TODO: Output the samples in the ringbuffer
-                // TODO: Can we only support f32 output buffers?
-                match stream_data {
-                    StreamData::Output { buffer: UnknownTypeOutputBuffer::U16(mut buffer) } => {
-                        for elem in buffer.iter_mut() {
-                            *elem = u16::max_value() / 2;
-                        }
-                    },
-                    StreamData::Output { buffer: UnknownTypeOutputBuffer::I16(mut buffer) } => {
-                        for elem in buffer.iter_mut() {
-                            *elem = 0;
-                        }
-                    },
-                    StreamData::Output { buffer: UnknownTypeOutputBuffer::F32(mut buffer) } => {
-                        for elem in buffer.iter_mut() {
+        loop {
+            while !producer.is_full() {
+                let s = (w * t as f32).sin();
+                producer.push(s).unwrap();
+                t += t_inc;
+            }
+            thread::sleep(Duration::from_secs_f32(t_sleep));
+        }
+    });
+
+    // Spawn audio device thread.
+    thread::spawn(move || {
+        let event_loop = host.event_loop();
+        let stream_id = event_loop.build_output_stream(&device, &format).unwrap();
+        event_loop.play_stream(stream_id).expect("Failed to play_stream.");
+        event_loop.run(move |stream_id, stream_result| {
+            let stream_data = match stream_result {
+                Ok(data) => data,
+                Err(err) => {
+                    eprintln!("An error occurred on stream {:?}: {}", stream_id, err);
+                    return;
+                },
+            };
+
+            match stream_data {
+                StreamData::Output { buffer: UnknownTypeOutputBuffer::F32(mut buffer) } => {
+                    for (i, elem) in buffer.iter_mut().enumerate() {
+                        if i % channels as usize == 0 {
+                            *elem = consumer.pop().unwrap_or(0.0);
+                        } else {
                             *elem = 0.0;
                         }
-                    },
-                    _ => (),
-                }
-            });
+                    }
+                },
+                _ => unreachable!(),
+            }
         });
-
-        AudioOutputDevice { stream: producer, channels, sample_rate }
-    }
+    });
 }
 
 #[allow(dead_code)]
@@ -156,7 +160,6 @@ pub struct App {
     events: Receiver<(f64, WindowEvent)>,
     state: RefCell<State>,
     logger: RefCell<Logger>,
-    audio_out: AudioOutputDevice,
 }
 
 thread_local! {
@@ -195,8 +198,7 @@ impl App {
         gl::load_with(|symbol| window.get_proc_address(symbol));
         glfw.set_swap_interval(SwapInterval::Sync(1)); // Enable vsync
 
-        const BUFFER_SIZE: usize = 512;
-        let audio_out = AudioOutputDevice::new(BUFFER_SIZE);
+        create_audio_thread(1024);
 
         Self {
             gui: RefCell::new(gui),
@@ -205,7 +207,6 @@ impl App {
             events,
             state: RefCell::new(state),
             logger: RefCell::new(logger),
-            audio_out,
         }
     }
 

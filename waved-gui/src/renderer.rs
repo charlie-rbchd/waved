@@ -119,10 +119,10 @@ impl<'f> Renderer<'f> {
                 const STATUS_BAR_HEIGHT: f32 = 20.0;
                 draw_status_bar(&frame, (0.0, viewport.1 - STATUS_BAR_HEIGHT), (viewport.0, viewport.1));
 
-                let channel_height = (viewport.1 - STATUS_BAR_HEIGHT) / file.num_channels as f32;
+                let channel_height = (viewport.1 - STATUS_BAR_HEIGHT) / file.channels as f32;
 
-                for i in 0..file.num_channels as usize {
-                    let samples_per_channel = file.samples.len() / file.num_channels as usize;
+                for i in 0..file.channels as usize {
+                    let samples_per_channel = file.samples.len() / file.channels as usize;
                     let channel_slice_start = samples_per_channel * i;
                     let channel_slice_end = samples_per_channel * (i + 1);
 
