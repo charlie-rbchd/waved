@@ -1,10 +1,29 @@
 use std::thread;
 use std::time::Duration;
+use std::iter::Iterator;
 
 use cpal::{self, StreamData, UnknownTypeOutputBuffer, SampleFormat};
 use cpal::traits::{HostTrait, DeviceTrait, EventLoopTrait};
 
 use ringbuf::{self, RingBuffer};
+
+fn sine_generator(sample_rate: u32) -> impl std::iter::Iterator<Item = f32> {
+    let mut t = 0.0;
+    let t_inc = 1.0 / sample_rate as f32;
+
+    let f = 1000.0;
+    let w = 2.0 * std::f32::consts::PI * f;
+
+    std::iter::from_fn(move || {
+        let s = (w * t as f32).sin();
+        t += t_inc;
+        Some(s)
+    })
+}
+
+struct SignalChain {
+
+}
 
 pub fn create_audio_thread(buffer_size: usize) {
     let host = cpal::default_host();
@@ -26,18 +45,12 @@ pub fn create_audio_thread(buffer_size: usize) {
 
     // Spawn audio mixing thread.
     thread::spawn(move || {
-        let mut t = 0.0;
-        let t_inc = 1.0 / sample_rate as f32;
+        // TODO: Perform mixing according to a signal chain state
         let t_sleep = buffer_size as f32 / sample_rate as f32 * 0.5;
-
-        let f = 1000.0;
-        let w = 2.0 * std::f32::consts::PI * f;
-
+        let mut sine = sine_generator(sample_rate);
         loop {
             while !producer.is_full() {
-                let s = (w * t as f32).sin();
-                producer.push(s).unwrap();
-                t += t_inc;
+                producer.push(sine.next().unwrap()).unwrap();
             }
             thread::sleep(Duration::from_secs_f32(t_sleep));
         }
