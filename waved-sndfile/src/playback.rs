@@ -7,23 +7,7 @@ use cpal::traits::{HostTrait, DeviceTrait, EventLoopTrait};
 
 use ringbuf::{self, RingBuffer};
 
-fn sine_generator(sample_rate: u32) -> impl std::iter::Iterator<Item = f32> {
-    let mut t = 0.0;
-    let t_inc = 1.0 / sample_rate as f32;
-
-    let f = 1000.0;
-    let w = 2.0 * std::f32::consts::PI * f;
-
-    std::iter::from_fn(move || {
-        let s = (w * t as f32).sin();
-        t += t_inc;
-        Some(s)
-    })
-}
-
-struct SignalChain {
-
-}
+use crate::generator;
 
 pub fn create_audio_thread(buffer_size: usize) {
     let host = cpal::default_host();
@@ -45,9 +29,9 @@ pub fn create_audio_thread(buffer_size: usize) {
 
     // Spawn audio mixing thread.
     thread::spawn(move || {
-        // TODO: Perform mixing according to a signal chain state
+        // TODO: Implement mixing / filtering signal chain
         let t_sleep = buffer_size as f32 / sample_rate as f32 * 0.5;
-        let mut sine = sine_generator(sample_rate);
+        let mut sine = generator::sine(sample_rate, 500.0);
         loop {
             while !producer.is_full() {
                 producer.push(sine.next().unwrap()).unwrap();

@@ -115,10 +115,10 @@ impl<'f> Renderer<'f> {
 
     pub fn render(&self, state: &State, viewport: (f32, f32), scale: f32) {
         self.context.frame(viewport, scale, |frame| {
-            if let Some(file) = &state.current_file {
-                const STATUS_BAR_HEIGHT: f32 = 20.0;
-                draw_status_bar(&frame, (0.0, viewport.1 - STATUS_BAR_HEIGHT), (viewport.0, viewport.1));
+            const STATUS_BAR_HEIGHT: f32 = 20.0;
+            draw_status_bar(&frame, (0.0, viewport.1 - STATUS_BAR_HEIGHT), (viewport.0, viewport.1));
 
+            if let Some(file) = &state.current_file {
                 let channel_height = (viewport.1 - STATUS_BAR_HEIGHT) / file.channels as f32;
 
                 for i in 0..file.channels as usize {

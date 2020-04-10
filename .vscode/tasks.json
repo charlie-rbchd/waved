@@ -4,6 +4,7 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "dependsOn": ["Build (waved-gui)"],
             "type": "shell",
             "label": "Build (app)",
             "group": "build",
@@ -11,6 +12,18 @@
             "args": [
                 "build",
                 "--features", "'live-reload'"
+            ],
+            "problemMatcher": [ "$rustc" ]
+        },
+        {
+            "dependsOn": ["Build (waved-gui, release)"],
+            "type": "shell",
+            "label": "Build (app, release)",
+            "group": "build",
+            "command": "cargo",
+            "args": [
+                "build",
+                "--release",
             ],
             "problemMatcher": [ "$rustc" ]
         },
@@ -62,6 +75,35 @@
             "runOptions": {
                 "runOn": "folderOpen"
             }
+        },
+        {
+            "type": "shell",
+            "label": "Build (waved-gui, release)",
+            "group": "build",
+            "command": "cargo",
+            "options": {
+                "cwd": "${workspaceFolder}/waved-gui"
+            },
+            "linux": {
+                "args": [
+                    "build", "--release",
+                    "&&", "mv", "-f", "target/release/libwaved_gui.so", "../target/release/libwaved_gui.so"
+                ]
+            },
+            "osx": {
+                "args": [
+                    "build", "--release",
+                    "&&", "mv", "-f", "target/release/libwaved_gui.dylib", "../target/release/libwaved_gui.dylib",
+                    "&&", "install_name_tool", "-id", "${workspaceFolder}/target/release/libwaved_gui.dylib", "../target/release/libwaved_gui.dylib"
+                ]
+            },
+            "windows": {
+                "args": [
+                    "build", "--release",
+                    "&&", "mv", "-f", "target/release/waved_gui.dll", "../target/release/waved_gui.dll"
+                ]
+            },
+            "problemMatcher": [ "$rustc" ]
         },
         {
             "type": "shell",
